@@ -1,0 +1,83 @@
+{
+  "entities": {
+    "PlayerSave": {
+      "title": "PlayerSave",
+      "description": "Cloud save progress for a night guard in TELECHOBIS LAND, tracking unlocked nights, deaths, and Night 6 Extras unlock state.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the player.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Guard callsign or player display name.",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "currentNight": {
+          "type": "integer",
+          "description": "Active night number (1 to 6) for Continue Game."
+        },
+        "completedNights": {
+          "type": "integer",
+          "description": "Highest number of nights completed (0 to 6)."
+        },
+        "night6Completed": {
+          "type": "boolean",
+          "description": "Whether the player has survived Night 6."
+        },
+        "extrasUnlocked": {
+          "type": "boolean",
+          "description": "Whether the Extras menu (3D models, jumpscares, confidential lawsuit files) is unlocked."
+        },
+        "totalDeaths": {
+          "type": "integer",
+          "description": "Cumulative jumpscare deaths across sessions."
+        },
+        "totalHoursSurvived": {
+          "type": "integer",
+          "description": "Cumulative in-game hours survived."
+        },
+        "bestNightPowerRemaining": {
+          "type": "number",
+          "description": "Highest remaining battery percentage achieved at 6:00 AM."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last update timestamp."
+        }
+      },
+      "required": [
+        "userId",
+        "displayName",
+        "currentNight",
+        "completedNights",
+        "night6Completed",
+        "extrasUnlocked",
+        "totalDeaths",
+        "totalHoursSurvived",
+        "bestNightPowerRemaining",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/saves/{userId}": {
+      "schema": {
+        "$ref": "#/entities/PlayerSave"
+      },
+      "description": "Per-player cloud save document keyed by Firebase Auth UID."
+    }
+  }
+}
