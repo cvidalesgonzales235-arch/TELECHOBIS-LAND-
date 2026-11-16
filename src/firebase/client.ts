@@ -156,6 +156,7 @@ export async function ensureNewGameSave(user: User): Promise<PlayerSave> {
         currentNight: 1,
         completedNights: 0,
         night6Completed: false,
+        night7Completed: false,
         extrasUnlocked: false,
         totalDeaths: 0,
         totalHoursSurvived: 0,
@@ -192,7 +193,7 @@ export async function saveNightVictory(
 ): Promise<void> {
   const path = `saves/${user.uid}`;
   const ref = doc(db, 'saves', user.uid);
-  const clampedNight = Math.max(1, Math.min(6, Math.floor(nightNumber)));
+  const clampedNight = Math.max(1, Math.min(7, Math.floor(nightNumber)));
   const cleanPower = Math.max(0, Math.min(100, Number(remainingPower.toFixed(1))));
 
   try {
@@ -204,19 +205,56 @@ export async function saveNightVictory(
     const data = freshSnap.data() as PlayerSave;
 
     const nextCompleted = Math.min(
-      6,
+      7,
       Math.max(data.completedNights, Math.min(data.completedNights + 1, clampedNight))
     );
-    const nextNight = clampedNight < 6 ? clampedNight + 1 : 6;
-    const night6Done = nextCompleted === 6;
+    const nextNight = clampedNight < 7 ? clampedNight + 1 : 7;
+    const night6Done = nextCompleted >= 6;
+    const night7Done = nextCompleted === 7;
+    // Preserve v1 Night 6 unlocks (`data.extrasUnlocked === true`); new players unlock on Night 7.
+    const nextExtrasUnlocked = Boolean(data.extrasUnlocked || night7Done);
 
     await updateDoc(ref, {
       currentNight: nextNight,
       completedNights: nextCompleted,
       night6Completed: night6Done,
-      extrasUnlocked: night6Done,
+      night7Completed: night7Done,
+      extrasUnlocked: nextExtrasUnlocked,
       totalHoursSurvived: data.totalHoursSurvived + 6,
       bestNightPowerRemaining: Math.max(data.bestNightPowerRemaining, cleanPower),
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+}
+
+export function getContinueNight(save: PlayerSave | null): number {
+  if (!save) return 1;
+  if (
+    (save.night6Completed || save.completedNights >= 6 || save.extrasUnlocked) &&
+    save.currentNight >= 6
+  ) {
+    return 7;
+  }
+  return Math.max(1, Math.min(7, save.currentNight));
+}
+
+export async function syncLegacyNight7Continue(
+  user: User,
+  save: PlayerSave
+): Promise<void> {
+  if (
+    !(save.night6Completed || save.completedNights >= 6 || save.extrasUnlocked) ||
+    save.currentNight !== 6
+  ) {
+    return;
+  }
+  const path = `saves/${user.uid}`;
+  const ref = doc(db, 'saves', user.uid);
+  try {
+    await updateDoc(ref, {
+      currentNight: 7,
       updatedAt: serverTimestamp(),
     });
   } catch (error) {

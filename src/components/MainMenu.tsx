@@ -5,6 +5,7 @@ import { OFFICE_ASSETS, PlayerSave, TelechobiId } from '../types/game';
 import { StaticCanvas } from './StaticCanvas';
 import { CobwebCorner, TelechobiSprite } from './TelechobiArt';
 import { soundEngine } from '../audio/soundEngine';
+import { getContinueNight } from '../firebase/client';
 
 interface MainMenuProps {
   user: User | null;
@@ -18,6 +19,7 @@ interface MainMenuProps {
   onSignOut: () => void;
   onNewGame: () => void;
   onContinue: () => void;
+  onSelectNight: () => void;
   onOpenExtras: () => void;
 }
 
@@ -35,6 +37,7 @@ export function MainMenu({
   onSignOut,
   onNewGame,
   onContinue,
+  onSelectNight,
   onOpenExtras,
 }: MainMenuProps) {
   const [activeChar, setActiveChar] = useState<TelechobiId>('ton');
@@ -45,6 +48,7 @@ export function MainMenu({
   // Authentic FNAF-style erratic animatronic twitching + VHS static spikes
   useEffect(() => {
     soundEngine.startAmbience('menu');
+    soundEngine.preloadNightSfx();
 
     let timerId = 0;
     const scheduleTwitch = () => {
@@ -91,7 +95,9 @@ export function MainMenu({
   }, []);
 
   const canContinue = Boolean(user && playerSave && !saveLoading);
-  const extrasUnlocked = Boolean(user && playerSave?.extrasUnlocked);
+  const progressionUnlocked = Boolean(
+    user && (playerSave?.extrasUnlocked || playerSave?.night7Completed)
+  );
 
   return (
     <div className="relative w-screen h-screen bg-[#040405] overflow-hidden flex flex-col justify-between">
@@ -277,43 +283,82 @@ export function MainMenu({
             <span>Continuar</span>
             {canContinue && playerSave && (
               <span className="ml-2 text-sm font-mono-tech text-amber-400/90 tracking-normal">
-                Noche {playerSave.currentNight}
+                Noche {getContinueNight(playerSave)}
               </span>
             )}
           </button>
 
-          {/* Option 3: Extras (locked with padlock until Night 6 completed) */}
+          {/* Option 3: Seleccionar Noche (locked until Night 7 completed or legacy v1 Night-6 save) */}
           <button
             type="button"
-            disabled={!extrasUnlocked}
+            disabled={!progressionUnlocked}
             onMouseEnter={() => {
-              if (extrasUnlocked) {
+              if (progressionUnlocked) {
                 setHoveredIdx(2);
                 soundEngine.playClick(620);
               }
             }}
             onClick={() => {
-              if (!extrasUnlocked) return;
+              if (!progressionUnlocked) return;
+              soundEngine.unlock();
+              soundEngine.playClick(820);
+              onSelectNight();
+            }}
+            className={`group flex items-center gap-3 py-1.5 text-left font-display text-3xl sm:text-4xl tracking-wide transition-colors ${
+              progressionUnlocked
+                ? 'text-zinc-100 hover:text-amber-200 cursor-pointer focus-visible:outline-none focus-visible:text-amber-300'
+                : 'text-zinc-400/60 cursor-not-allowed'
+            }`}
+          >
+            <span
+              className={`font-mono-tech text-2xl transition-opacity ${
+                progressionUnlocked && hoveredIdx === 2 ? 'opacity-100 text-amber-400' : 'opacity-0'
+              }`}
+            >
+              &gt;&gt;
+            </span>
+            <span className="inline-flex items-center gap-2.5">
+              Seleccionar Noche
+              {!progressionUnlocked && (
+                <Lock className="w-5 h-5 text-zinc-400/65" aria-hidden="true" />
+              )}
+            </span>
+          </button>
+
+          {/* Option 4: Extras (locked until Night 7 completed or legacy v1 Night-6 save) */}
+          <button
+            type="button"
+            disabled={!progressionUnlocked}
+            onMouseEnter={() => {
+              if (progressionUnlocked) {
+                setHoveredIdx(3);
+                soundEngine.playClick(620);
+              }
+            }}
+            onClick={() => {
+              if (!progressionUnlocked) return;
               soundEngine.unlock();
               soundEngine.playClick(820);
               onOpenExtras();
             }}
             className={`group flex items-center gap-3 py-1.5 text-left font-display text-3xl sm:text-4xl tracking-wide transition-colors ${
-              extrasUnlocked
+              progressionUnlocked
                 ? 'text-zinc-100 hover:text-amber-300 cursor-pointer'
                 : 'text-zinc-400/60 cursor-not-allowed'
             }`}
           >
             <span
               className={`font-mono-tech text-2xl transition-opacity ${
-                extrasUnlocked && hoveredIdx === 2 ? 'opacity-100 text-amber-400' : 'opacity-0'
+                progressionUnlocked && hoveredIdx === 3 ? 'opacity-100 text-amber-400' : 'opacity-0'
               }`}
             >
               &gt;&gt;
             </span>
             <span className="inline-flex items-center gap-2.5">
               Extras
-              {!extrasUnlocked && <Lock className="w-5 h-5 text-zinc-400/65" aria-hidden="true" />}
+              {!progressionUnlocked && (
+                <Lock className="w-5 h-5 text-zinc-400/65" aria-hidden="true" />
+              )}
             </span>
           </button>
         </nav>
@@ -321,7 +366,7 @@ export function MainMenu({
         {!user && !authLoading && (
           <p className="mt-6 text-xs font-mono-tech text-zinc-400 max-w-md leading-relaxed">
             Conecta tu cuenta de Google para guardar tus noches superadas en Firebase y habilitar
-            Continuar y Extras.
+            Continuar, Seleccionar Noche y Extras.
           </p>
         )}
 
@@ -337,8 +382,8 @@ export function MainMenu({
         </div>
         <div>
           {playerSave
-            ? `Noches superadas: ${playerSave.completedNights}/6 · Extras: ${
-                playerSave.extrasUnlocked ? 'Desbloqueado' : 'Completa Noche 6'
+            ? `Noches superadas: ${playerSave.completedNights}/7 · Desbloqueo: ${
+                progressionUnlocked ? 'Activo' : 'Completa Noche 7'
               }`
             : '© 1999 Estudios Ajusco · Señal de Prueba'}
         </div>

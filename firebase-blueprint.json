@@ -2,7 +2,7 @@
   "entities": {
     "PlayerSave": {
       "title": "PlayerSave",
-      "description": "Cloud save progress for a night guard in TELECHOBIS LAND, tracking unlocked nights, deaths, and Night 6 Extras unlock state.",
+      "description": "Cloud save progress for a night guard in TELECHOBIS LAND, tracking unlocked nights (1 to 7), deaths, and Night 7 Extras/Night-Selector unlock state (preserving v1 Night 6 unlocks).",
       "type": "object",
       "properties": {
         "userId": {
@@ -20,23 +20,27 @@
         },
         "currentNight": {
           "type": "integer",
-          "description": "Active night number (1 to 6) for Continue Game."
+          "description": "Active night number (1 to 7) for Continue Game."
         },
         "completedNights": {
           "type": "integer",
-          "description": "Highest number of nights completed (0 to 6)."
+          "description": "Highest number of nights completed (0 to 7)."
         },
         "night6Completed": {
           "type": "boolean",
-          "description": "Whether the player has survived Night 6."
+          "description": "Whether the player has survived Night 6 or higher."
+        },
+        "night7Completed": {
+          "type": "boolean",
+          "description": "Whether the player has survived Night 7 (Final Boss Night)."
         },
         "extrasUnlocked": {
           "type": "boolean",
-          "description": "Whether the Extras menu (3D models, jumpscares, confidential lawsuit files) is unlocked."
+          "description": "Whether Extras and Night Selector are unlocked (earned via Night 7 or preserved from earlier v1 Night 6 completion)."
         },
         "totalDeaths": {
           "type": "integer",
-          "description": "Cumulative jumpscare deaths across sessions."
+          "description": "Cumulative deaths across sessions."
         },
         "totalHoursSurvived": {
           "type": "integer",

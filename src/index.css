@@ -145,14 +145,100 @@
   100% { transform: scale(1.5) translate(12px, -10px) rotate(3deg); }
 }
 
+/* 4 INVERTED VENTILATION JUMPSCARES (Upside-down drop out of ceiling vent) */
+@keyframes jumpscare-vent-ton {
+  0% { transform: translateY(-65%) scale(0.38) scaleY(-1) rotate(8deg); opacity: 0.35; }
+  22% { transform: translateY(-4%) scale(1.28) scaleY(-1) rotate(-4deg); opacity: 1; }
+  44% { transform: translate(-18px, 12px) scale(1.38) scaleY(-1) rotate(5deg); }
+  66% { transform: translate(18px, -10px) scale(1.44) scaleY(-1) rotate(-5deg); }
+  85% { transform: translate(-12px, 8px) scale(1.36) scaleY(-1) rotate(3deg); }
+  100% { transform: translate(6px, -6px) scale(1.42) scaleY(-1) rotate(-2deg); }
+}
+
+@keyframes jumpscare-vent-toso {
+  0% { transform: translate(24%, -68%) scale(0.36) scaleY(-1) rotate(-14deg); opacity: 0.35; }
+  20% { transform: translate(-4%, -2%) scale(1.32) scaleY(-1) rotate(6deg); opacity: 1; }
+  42% { transform: translate(20px, 16px) scale(1.42) scaleY(-1) rotate(-6deg); }
+  64% { transform: translate(-20px, -14px) scale(1.34) scaleY(-1) rotate(5deg); }
+  84% { transform: translate(14px, 10px) scale(1.46) scaleY(-1) rotate(-4deg); }
+  100% { transform: translate(-8px, 4px) scale(1.38) scaleY(-1) rotate(2deg); }
+}
+
+@keyframes jumpscare-vent-nita {
+  0% { transform: translate(-26%, -66%) scale(0.34) scaleY(-1) rotate(16deg); opacity: 0.35; }
+  24% { transform: translate(4%, 0%) scale(1.3) scaleY(-1) rotate(-10deg); opacity: 1; }
+  46% { transform: translate(-18px, 14px) scale(1.4) scaleY(-1) rotate(11deg); }
+  68% { transform: translate(16px, -12px) scale(1.46) scaleY(-1) rotate(-10deg); }
+  100% { transform: translate(-10px, 6px) scale(1.38) scaleY(-1) rotate(5deg); }
+}
+
+@keyframes jumpscare-vent-tis {
+  0% { transform: translateY(-72%) scale(0.32) scaleY(-1) skewX(12deg); opacity: 0.3; }
+  18% { transform: translateY(-6%) scale(1.36) scaleY(-1) skewX(-6deg); opacity: 1; }
+  38% { transform: translate(22px, -12px) scale(1.46) scaleY(-1) rotate(6deg); }
+  58% { transform: translate(-24px, 16px) scale(1.36) scaleY(-1) rotate(-7deg); }
+  78% { transform: translate(16px, 10px) scale(1.48) scaleY(-1) rotate(4deg); }
+  100% { transform: translate(-10px, -8px) scale(1.42) scaleY(-1) rotate(-3deg); }
+}
+
 .animate-jumpscare-door-ton { animation: jumpscare-door-ton 0.38s infinite alternate; }
 .animate-jumpscare-door-toso { animation: jumpscare-door-toso 0.32s infinite alternate; }
 .animate-jumpscare-door-nita { animation: jumpscare-door-nita 0.42s infinite alternate; }
 .animate-jumpscare-door-tis { animation: jumpscare-door-tis 0.28s infinite alternate; }
+.animate-jumpscare-door-arbol { animation: jumpscare-door-ton 0.36s infinite alternate; }
+.animate-jumpscare-door-champi { animation: jumpscare-door-toso 0.28s infinite alternate; }
+.animate-jumpscare-door-non { animation: jumpscare-door-nita 0.34s infinite alternate; }
+.animate-jumpscare-door-charro { animation: jumpscare-door-tis 0.3s infinite alternate; }
+
 .animate-jumpscare-hall-ton { animation: jumpscare-hall-ton 0.36s ease-out forwards, jumpscare-shake 0.14s 0.36s infinite; }
 .animate-jumpscare-hall-toso { animation: jumpscare-hall-toso 0.32s ease-out forwards, jumpscare-shake 0.12s 0.32s infinite; }
 .animate-jumpscare-hall-nita { animation: jumpscare-hall-nita 0.4s ease-out forwards, jumpscare-shake 0.15s 0.4s infinite; }
 .animate-jumpscare-hall-tis { animation: jumpscare-hall-tis 0.28s ease-out forwards, jumpscare-shake 0.11s 0.28s infinite; }
+.animate-jumpscare-hall-arbol { animation: jumpscare-hall-ton 0.34s ease-out forwards, jumpscare-shake 0.13s 0.34s infinite; }
+.animate-jumpscare-hall-champi { animation: jumpscare-hall-toso 0.26s ease-out forwards, jumpscare-shake 0.1s 0.26s infinite; }
+.animate-jumpscare-hall-non { animation: jumpscare-hall-nita 0.32s ease-out forwards, jumpscare-shake 0.12s 0.32s infinite; }
+.animate-jumpscare-hall-charro { animation: jumpscare-hall-tis 0.3s ease-out forwards, jumpscare-shake 0.12s 0.3s infinite; }
+
+.animate-jumpscare-vent-ton { animation: jumpscare-vent-ton 0.36s ease-out infinite alternate; }
+.animate-jumpscare-vent-toso { animation: jumpscare-vent-toso 0.32s ease-out infinite alternate; }
+.animate-jumpscare-vent-nita { animation: jumpscare-vent-nita 0.4s ease-out infinite alternate; }
+.animate-jumpscare-vent-tis { animation: jumpscare-vent-tis 0.28s ease-out infinite alternate; }
+.animate-jumpscare-vent-arbol { animation: jumpscare-vent-ton 0.34s ease-out infinite alternate; }
+.animate-jumpscare-vent-champi { animation: jumpscare-vent-toso 0.28s ease-out infinite alternate; }
+.animate-jumpscare-vent-non { animation: jumpscare-vent-nita 0.32s ease-out infinite alternate; }
+.animate-jumpscare-vent-charro { animation: jumpscare-vent-tis 0.3s ease-out infinite alternate; }
+
+@keyframes jumpscare-office-charro {
+  0% { transform: scale(0.5) translateY(14%); opacity: 0.2; filter: brightness(0.4); }
+  22% { transform: scale(1.32) translateY(-4%); opacity: 1; filter: contrast(1.8) brightness(1.1); }
+  45% { transform: scale(1.42) translate(-16px, 10px) rotate(-3deg); }
+  70% { transform: scale(1.48) translate(16px, -10px) rotate(3deg); }
+  100% { transform: scale(1.4) translate(0, 0); }
+}
+
+.animate-jumpscare-office-charro {
+  animation: jumpscare-office-charro 0.32s ease-out forwards, jumpscare-shake 0.13s 0.32s infinite;
+}
+
+/* Oxygen Deprivation & Fresh-Air 100% Recovery Animations */
+@keyframes oxygen-low-pulse {
+  0%, 100% { opacity: 0.72; transform: scale(1); }
+  50% { opacity: 0.96; transform: scale(0.965); }
+}
+
+@keyframes oxygen-restored-wave {
+  0% { opacity: 0.92; transform: scale(0.92); }
+  45% { opacity: 0.65; transform: scale(1.03); }
+  100% { opacity: 0; transform: scale(1.08); }
+}
+
+.animate-oxygen-low {
+  animation: oxygen-low-pulse 1.15s ease-in-out infinite;
+}
+
+.animate-oxygen-restored {
+  animation: oxygen-restored-wave 1.15s ease-out forwards;
+}
 
 /* 4 DISTINCT HALLWAY CONFRONTATION ANIMATIONS (in front of desk while masked) */
 @keyframes hall-confront-ton {
@@ -211,12 +297,71 @@
   88% { opacity: 0.28; }
 }
 
+@keyframes non-crawl-floor {
+  0%, 100% { transform: translateY(18%) rotate(-6deg) scale(1.02); }
+  33% { transform: translate(6px, 19%) rotate(-3deg) scale(1.04); }
+  66% { transform: translate(-6px, 17%) rotate(-8deg) scale(1.01); }
+}
+
+@keyframes turn-sway-left {
+  0% { transform: perspective(900px) rotateY(-5deg) translateX(18px); }
+  65% { transform: perspective(900px) rotateY(1.8deg) translateX(-4px); }
+  100% { transform: perspective(900px) rotateY(0deg) translateX(0px); }
+}
+
+@keyframes turn-sway-right {
+  0% { transform: perspective(900px) rotateY(5deg) translateX(-18px); }
+  65% { transform: perspective(900px) rotateY(-1.8deg) translateX(4px); }
+  100% { transform: perspective(900px) rotateY(0deg) translateX(0px); }
+}
+
+@keyframes turn-sway-back {
+  0% { transform: scale(0.96) rotateX(4deg); opacity: 0.7; }
+  100% { transform: scale(1) rotateX(0deg); opacity: 1; }
+}
+
+@keyframes hands-mask-on {
+  0% { transform: translateY(85%) scale(1.08); opacity: 0.4; }
+  55% { transform: translateY(6%) scale(1.02); opacity: 1; }
+  100% { transform: translateY(-28%) scale(0.95); opacity: 0; }
+}
+
+@keyframes hands-mask-off {
+  0% { transform: translateY(-20%) scale(0.96); opacity: 0.3; }
+  45% { transform: translateY(10%) scale(1.04); opacity: 1; }
+  100% { transform: translateY(90%) scale(1.08); opacity: 0; }
+}
+
+@keyframes hands-cam-up {
+  0% { transform: translateY(92%) scale(1.05); opacity: 0.5; }
+  60% { transform: translateY(0%) scale(1); opacity: 1; }
+  100% { transform: translateY(-10%) scale(0.98); opacity: 0; }
+}
+
+@keyframes hands-cam-down {
+  0% { transform: translateY(-12%) scale(0.98); opacity: 0.4; }
+  45% { transform: translateY(16%) scale(1.02); opacity: 1; }
+  100% { transform: translateY(95%) scale(1.06); opacity: 0; }
+}
+
 .animate-hall-ton { animation: hall-confront-ton 1.85s ease-out forwards; }
 .animate-hall-toso { animation: hall-confront-toso 1.85s linear forwards; }
 .animate-hall-nita { animation: hall-confront-nita 1.85s ease-in-out forwards; }
 .animate-hall-tis { animation: hall-confront-tis 1.85s steps(2, end) forwards; }
+.animate-hall-arbol { animation: hall-confront-ton 1.85s ease-out forwards; }
+.animate-hall-champi { animation: hall-confront-toso 1.85s linear forwards; }
+.animate-hall-non { animation: hall-confront-nita 1.85s ease-in-out forwards; }
+.animate-hall-charro { animation: hall-confront-tis 1.85s steps(2, end) forwards; }
 .animate-hall-flicker-out { animation: hall-flicker-out 0.68s linear forwards; }
 .animate-room-flicker { animation: room-light-flicker 0.34s infinite; }
+.animate-non-crawl { animation: non-crawl-floor 1.5s ease-in-out infinite; }
+.animate-turn-left { animation: turn-sway-left 0.24s cubic-bezier(0.16, 1, 0.3, 1); }
+.animate-turn-right { animation: turn-sway-right 0.24s cubic-bezier(0.16, 1, 0.3, 1); }
+.animate-turn-back { animation: turn-sway-back 0.26s cubic-bezier(0.16, 1, 0.3, 1); }
+.animate-hands-mask-on { animation: hands-mask-on 0.46s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-hands-mask-off { animation: hands-mask-off 0.46s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-hands-cam-up { animation: hands-cam-up 0.42s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-hands-cam-down { animation: hands-cam-down 0.42s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
 @keyframes mask-breath {
   0%, 100% { transform: scale(1) translateY(0px); }
@@ -257,4 +402,49 @@
   box-shadow:
     inset 0 2px 3px rgba(0, 0, 0, 0.65),
     0 1px 0 #2b251c;
+}
+
+@keyframes ending-flame-dance {
+  0%, 100% { transform: scaleY(1) scaleX(1) translateY(0); opacity: 0.88; }
+  30% { transform: scaleY(1.14) scaleX(0.94) translateY(-6px); opacity: 1; }
+  65% { transform: scaleY(0.92) scaleX(1.06) translateY(2px); opacity: 0.82; }
+}
+
+@keyframes ending-ember-rise {
+  0% { transform: translateY(0) translateX(0) scale(0.7); opacity: 0; }
+  18% { opacity: 0.95; }
+  100% { transform: translateY(-78vh) translateX(28px) scale(0.2); opacity: 0; }
+}
+
+@keyframes ending-soul-ascend {
+  0% { transform: translateY(28vh) scale(0.55); opacity: 0; }
+  18% { opacity: 1; transform: translateY(10vh) scale(1); }
+  75% { opacity: 0.95; transform: translateY(-28vh) scale(1.08); }
+  100% { transform: translateY(-54vh) scale(0.85); opacity: 0; }
+}
+
+.animate-ending-flame {
+  animation: ending-flame-dance 0.9s ease-in-out infinite;
+}
+
+.animate-ending-ember {
+  animation: ending-ember-rise 4.2s linear infinite;
+}
+
+.animate-ending-soul {
+  animation: ending-soul-ascend 6.8s ease-out forwards;
+}
+
+@keyframes hallucination-glitch {
+  0% { opacity: 0.18; transform: translate(0px, 0px) scale(1.02); filter: contrast(1.8) brightness(0.75) hue-rotate(-14deg); }
+  14% { opacity: 0.92; transform: translate(-8px, 3px) scale(1.06) skewX(-2deg); filter: contrast(2.3) brightness(1.05) invert(0.16); }
+  28% { opacity: 0.25; transform: translate(7px, -4px) scale(0.99); filter: contrast(1.5) brightness(0.55); }
+  45% { opacity: 0.86; transform: translate(-4px, -2px) scale(1.04) skewX(2deg); filter: contrast(2.1) sepia(0.35) hue-rotate(-24deg); }
+  62% { opacity: 0.14; transform: translate(9px, 4px) scale(1.01); filter: contrast(1.6) brightness(0.6); }
+  80% { opacity: 0.88; transform: translate(-6px, 2px) scale(1.05); filter: contrast(2.4) brightness(0.95) invert(0.22); }
+  100% { opacity: 0.28; transform: translate(2px, -2px) scale(1.02); filter: contrast(1.7) brightness(0.7); }
+}
+
+.animate-hallucination-glitch {
+  animation: hallucination-glitch 0.52s steps(2, end) infinite;
 }

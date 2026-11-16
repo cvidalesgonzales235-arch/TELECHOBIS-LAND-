@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, PhoneCall, RefreshCw, VideoOff } from 'lucide-react';
+import { PhoneCall, RefreshCw, VideoOff } from 'lucide-react';
 import { CAMERA_ROOMS, CameraId, OFFICE_ASSETS, TELECHOBIS, TelechobiId } from '../types/game';
 import { StaticCanvas } from './StaticCanvas';
 import { CobwebCorner, CrackedGlassCorner, TelechobiSprite } from './TelechobiArt';
@@ -13,6 +13,9 @@ interface CctvMonitorProps {
     CameraId | 'left_door' | 'right_door' | 'hall_far' | 'hall_near' | 'office'
   >;
   brokenCams: Partial<Record<CameraId, number>>;
+  deactivatedEnemies?: TelechobiId[];
+  champiInterferenceCam?: CameraId | null;
+  radarActive?: boolean;
   lensTension: number;
   phoneFailed: boolean;
   phoneCooldown: number;
@@ -22,23 +25,35 @@ interface CctvMonitorProps {
   onPhoneSystemRepaired: () => void;
 }
 
-const MAP_COORDS: Record<CameraId, { x: number; y: number }> = {
-  cam1: { x: 50, y: 12 },
-  cam2: { x: 17, y: 22 },
-  cam3: { x: 83, y: 22 },
-  cam6: { x: 17, y: 49 },
-  cam5: { x: 50, y: 39 },
-  cam4: { x: 83, y: 49 },
-  cam8: { x: 17, y: 76 },
-  cam9: { x: 50, y: 65 },
-  cam7: { x: 83, y: 76 },
-};
+interface BlueprintCamSpec {
+  id: CameraId;
+  leftPct: number;
+  topPct: number;
+  pointer: 'right' | 'left' | 'down' | 'up';
+}
+
+// Exact layout matching reference architectural schematic (images_11c434e0.png)
+const BLUEPRINT_CAMS: BlueprintCamSpec[] = [
+  { id: 'cam9', leftPct: 54.5, topPct: 11.5, pointer: 'down' },
+  { id: 'cam10', leftPct: 79.5, topPct: 21.5, pointer: 'left' },
+  { id: 'cam7', leftPct: 16.5, topPct: 29.0, pointer: 'right' },
+  { id: 'cam8', leftPct: 39.5, topPct: 22.5, pointer: 'down' },
+  { id: 'cam6', leftPct: 16.5, topPct: 48.0, pointer: 'right' },
+  { id: 'cam5', leftPct: 49.0, topPct: 45.5, pointer: 'left' },
+  { id: 'cam4', leftPct: 81.5, topPct: 42.5, pointer: 'left' },
+  { id: 'cam3', leftPct: 81.5, topPct: 60.5, pointer: 'left' },
+  { id: 'cam2', leftPct: 64.0, topPct: 74.5, pointer: 'up' },
+  { id: 'cam1', leftPct: 18.0, topPct: 83.5, pointer: 'right' },
+];
 
 export function CctvMonitor({
   activeCam,
   onSelectCam,
   enemyRooms,
   brokenCams,
+  deactivatedEnemies = [],
+  champiInterferenceCam = null,
+  radarActive = false,
   lensTension,
   phoneFailed,
   phoneCooldown,
@@ -55,6 +70,7 @@ export function CctvMonitor({
 
   const currentRoom = CAMERA_ROOMS.find((c) => c.id === activeCam) || CAMERA_ROOMS[0];
   const isCamBroken = Boolean(brokenCams[activeCam] && brokenCams[activeCam]! > Date.now());
+  const showingChampiBanish = champiInterferenceCam === activeCam && !isCamBroken;
 
   const enemiesInThisCam = (Object.keys(enemyRooms) as TelechobiId[]).filter(
     (id) => enemyRooms[id] === activeCam
@@ -97,7 +113,9 @@ export function CctvMonitor({
 
   const staticLevel = isCamBroken
     ? 0.94
-    : Math.min(0.86, 0.25 + (lensTension / 100) * 0.55);
+    : showingChampiBanish
+      ? 0.85
+      : Math.min(0.86, 0.25 + (lensTension / 100) * 0.55);
 
   return (
     <div className="fixed inset-0 z-30 bg-[#040303]/92 backdrop-blur-[2px] flex flex-col pt-[102px] pb-[84px] lg:pt-[104px] lg:pb-[88px] px-2.5 sm:px-5 select-none overflow-hidden">
@@ -119,7 +137,7 @@ export function CctvMonitor({
         <svg
           viewBox="0 0 60 240"
           aria-hidden="true"
-          className="pointer-events-none hidden lg:block absolute right-[362px] top-6 w-8 h-56 z-20 opacity-80"
+          className="pointer-events-none hidden lg:block absolute right-[380px] top-6 w-8 h-56 z-20 opacity-80"
         >
           <path d="M 52 8 Q 18 55 46 115 T 38 232" stroke="#7d2518" strokeWidth="2.6" fill="none" />
           <path d="M 55 24 Q 26 80 48 142 T 30 236" stroke="#967f30" strokeWidth="2" fill="none" />
@@ -164,39 +182,58 @@ export function CctvMonitor({
                 )}
 
                 {enemiesInThisCam.length > 0 && (
-                  <div className="pointer-events-none absolute inset-0 flex items-end justify-center gap-4 pb-3">
-                    {enemiesInThisCam.map((enemyId, idx) => (
-                      <div
-                        key={enemyId}
-                        className={`relative h-[82%] aspect-[5/6] transition-transform ${
-                          lensTension > 50 ? 'scale-108' : 'scale-100'
-                        } ${idx === 1 ? '-ml-14 opacity-90' : ''}`}
-                        style={{
-                          filter:
-                            irMode === 'bw'
-                              ? 'grayscale(0.86) contrast(1.65) brightness(0.9) drop-shadow(0 0 26px rgba(0,0,0,1))'
-                              : 'grayscale(0.55) contrast(1.45) brightness(0.86) drop-shadow(0 0 22px rgba(0,0,0,0.95))',
-                        }}
-                      >
-                        <TelechobiSprite
-                          id={enemyId}
-                          variant="camera"
-                          twitchState={lensTension > 65 ? 2 : 0}
-                          className="w-full h-full"
-                        />
-                      </div>
-                    ))}
+                  <div className="pointer-events-none absolute inset-0 flex items-end justify-center gap-3 pb-3">
+                    {enemiesInThisCam.map((enemyId, idx) => {
+                      const isDeactivated = deactivatedEnemies.includes(enemyId);
+                      return (
+                        <div
+                          key={enemyId}
+                          className={`relative transition-transform ${
+                            isDeactivated
+                              ? 'h-[64%] aspect-[5/6] opacity-55 brightness-50 saturate-0'
+                              : `h-[82%] aspect-[5/6] ${lensTension > 50 ? 'scale-108' : 'scale-100'}`
+                          } ${idx > 0 ? '-ml-14 opacity-90' : ''}`}
+                          style={{
+                            filter: isDeactivated
+                              ? 'grayscale(1) contrast(1.25) brightness(0.42) drop-shadow(0 0 18px rgba(0,0,0,0.95))'
+                              : irMode === 'bw'
+                                ? 'contrast(1.38) brightness(0.92) drop-shadow(0 0 24px rgba(0,0,0,0.95))'
+                                : 'contrast(1.32) brightness(0.9) saturate(1.1) drop-shadow(0 0 22px rgba(0,0,0,0.92))',
+                          }}
+                        >
+                          <TelechobiSprite
+                            id={enemyId}
+                            variant="camera"
+                            twitchState={isDeactivated ? 3 : lensTension > 65 ? 2 : 0}
+                            className="w-full h-full"
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
+                )}
+
+                {/* Video de interferencia al neutralizar a Champi en las cámaras */}
+                {showingChampiBanish && (
+                  <video
+                    src={OFFICE_ASSETS.champiInterferenceVideo}
+                    autoPlay
+                    muted
+                    playsInline
+                    loop
+                    className="pointer-events-none absolute inset-0 w-full h-full object-cover z-20 mix-blend-screen opacity-90"
+                  />
                 )}
               </>
             ) : (
               <div className="w-full h-full bg-[#090807] flex flex-col items-center justify-center text-center p-4 z-10 relative">
                 <VideoOff className="w-8 h-8 text-red-500 mb-2" />
                 <p className="font-mono-tech text-xs sm:text-sm text-red-400 tracking-wider font-bold">
-                  SIN SEÑAL · LENTE DAÑADO
+                  SIN SEÑAL · LENTE DESTROZADO
                 </p>
                 <p className="font-mono-tech text-[10px] sm:text-[11px] text-zinc-400 mt-1 max-w-xs">
-                  El circuito sufrió una descarga. Selecciona otra cámara en el plano.
+                  El cristal de esta cámara estalló. Cambia a otra cámara en el plano mientras se
+                  reinicia el enlace.
                 </p>
               </div>
             )}
@@ -214,7 +251,7 @@ export function CctvMonitor({
             <CrackedGlassCorner position="bottom-left" className="w-16 h-16 opacity-35 z-20" />
             <CobwebCorner position="top-left" className="w-12 h-12 opacity-40 z-20" />
 
-            {/* OSD Superior directo sobre señal de video (sin cajas pesadas) */}
+            {/* OSD Superior directo sobre señal de video */}
             <div className="pointer-events-none absolute top-2 left-2.5 right-2.5 flex items-start justify-between gap-2 z-20">
               <div className="flex flex-col items-start gap-1 max-w-[62%]">
                 <div className="inline-flex items-center gap-1.5 bg-black/70 px-2 py-0.5 font-mono-tech text-[11px] sm:text-xs font-bold text-[#efe8d3] tracking-wider truncate max-w-full border-b border-[#8e8268]/60">
@@ -223,13 +260,6 @@ export function CctvMonitor({
                   <span className="truncate">{currentRoom.shortName}</span>
                   {zoomFocus && <span className="text-[10px] text-amber-300">[1.15x]</span>}
                 </div>
-
-                {lastRungCam === activeCam && phoneCooldown > 0 && (
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-950/90 border border-amber-500/75 text-amber-200 text-[9px] font-mono-tech">
-                    <PhoneCall className="w-2.5 h-2.5 animate-pulse" />
-                    TIMBRE SONANDO AQUÍ
-                  </span>
-                )}
               </div>
 
               <div className="flex flex-col items-end gap-1 shrink-0">
@@ -238,21 +268,15 @@ export function CctvMonitor({
                   <span>REC</span>
                 </div>
 
-                {enemiesInThisCam.length > 0 && !isCamBroken && (
-                  <div className="bg-black/85 border border-red-500/75 px-2 py-1 text-right">
-                    <div className="font-mono-tech text-[9px] sm:text-[10px] text-red-400 font-bold">
-                      ALERTA: {enemiesInThisCam.map((e) => TELECHOBIS[e].name).join(', ')}
-                    </div>
-                    <div className="mt-1 w-24 sm:w-32 h-1.5 bg-zinc-900 border border-zinc-700 overflow-hidden">
+                {enemiesInThisCam.length > 0 && !isCamBroken && lensTension > 5 && (
+                  <div className="bg-black/75 border border-[#4d3d30] px-2 py-1 text-right">
+                    <div className="w-20 sm:w-28 h-1.5 bg-zinc-900 border border-zinc-700 overflow-hidden">
                       <div
                         className={`h-full transition-all duration-100 ${
                           lensTension > 70 ? 'bg-red-500' : 'bg-amber-400'
                         }`}
                         style={{ width: `${Math.min(100, lensTension)}%` }}
                       />
-                    </div>
-                    <div className="font-mono-tech text-[9px] text-zinc-300 mt-0.5">
-                      LENTE: {Math.round(lensTension)}%
                     </div>
                   </div>
                 )}
@@ -270,7 +294,7 @@ export function CctvMonitor({
             </div>
           </div>
 
-          {/* Moldura inferior integrada al tubo CRT (Logo difuminado + interruptores B/N y Zoom) */}
+          {/* Moldura inferior integrada al tubo CRT */}
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2 px-1">
             <div className="flex items-center gap-2 min-w-0">
               <img
@@ -325,25 +349,42 @@ export function CctvMonitor({
           </div>
         </section>
 
-        {/* ===================== PANEL DERECHO/INFERIOR INTEGRADO: TIMBRE Y PLANO DEL FORO 4 ===================== */}
-        <aside className="relative lg:w-[372px] shrink-0 border-t-[2px] lg:border-t-0 lg:border-l-[2px] border-[#3d3225] bg-gradient-to-b from-[#171410] to-[#0d0b09] p-2 sm:p-3 flex flex-col gap-2 overflow-hidden">
-          {/* Bloque integrado de Señal de Audio DF (sin tarjetas anidadas) */}
-          <div className="space-y-1.5 pb-2 border-b border-[#342a20] shrink-0">
-            <div className="flex items-center justify-between text-[10px] font-mono-tech">
-              <span className="font-bold text-[#e5dcc6] tracking-wide">
-                SEÑAL DE AUDIO / TIMBRE DF
-              </span>
-              <span className={`font-bold ${phoneFailed ? 'text-red-400' : 'text-emerald-400'}`}>
-                {phoneFailed ? 'LÍNEA CAÍDA' : 'EN LÍNEA'}
-              </span>
-            </div>
-
-            {!phoneFailed ? (
+        {/* ===================== PANEL DERECHO/INFERIOR: AUDIO Y PLANO FNaF 3 REDISEÑADO ===================== */}
+        <aside className="relative lg:w-[390px] shrink-0 border-t-[2px] lg:border-t-0 lg:border-l-[2px] border-[#3d3225] bg-gradient-to-b from-[#171410] to-[#0d0b09] p-2 sm:p-3 flex flex-col gap-2 overflow-hidden">
+          {/* Audio disponible únicamente en ciertas cámaras (sin textos en cámaras no disponibles) */}
+          <div className="min-h-[42px] pb-2 border-b border-[#342a20] shrink-0 flex items-center">
+            {phoneFailed ? (
+              <button
+                type="button"
+                onMouseDown={() => {
+                  soundEngine.playClick(500);
+                  setIsHoldingReboot(true);
+                }}
+                onMouseUp={() => setIsHoldingReboot(false)}
+                onMouseLeave={() => setIsHoldingReboot(false)}
+                onTouchStart={() => {
+                  soundEngine.playClick(500);
+                  setIsHoldingReboot(true);
+                }}
+                onTouchEnd={() => setIsHoldingReboot(false)}
+                className="relative w-full py-2 px-3 font-mono-tech text-xs font-bold bg-[#4e1812] border-2 border-red-500 text-red-100 hover:bg-[#662018] overflow-hidden cursor-pointer flex items-center justify-center gap-2"
+              >
+                <div
+                  className="absolute inset-y-0 left-0 bg-amber-500/45 transition-none"
+                  style={{ width: `${rebootProgress}%` }}
+                />
+                <RefreshCw
+                  className={`w-4 h-4 relative z-10 ${isHoldingReboot ? 'animate-spin' : ''}`}
+                />
+                <span className="relative z-10">
+                  {isHoldingReboot ? `${Math.round(rebootProgress)}%` : 'REINICIAR AUDIO'}
+                </span>
+              </button>
+            ) : currentRoom.hasAudio ? (
               <button
                 type="button"
                 disabled={phoneCooldown > 0 || isCamBroken}
                 onClick={() => {
-                  soundEngine.playPhoneRing();
                   onRingPhone(activeCam);
                 }}
                 className={`tactile-keycap-90s w-full py-2 px-3 font-mono-tech text-[11px] sm:text-xs font-bold flex items-center justify-center gap-2 border transition-colors ${
@@ -354,81 +395,142 @@ export function CctvMonitor({
               >
                 <PhoneCall className="w-4 h-4 shrink-0" />
                 <span className="truncate">
-                  {phoneCooldown > 0
-                    ? `RECARGANDO AUDIO (${Math.ceil(phoneCooldown)}s)...`
-                    : `ATRAER CON AUDIO EN ${currentRoom.code}`}
+                  {phoneCooldown > 0 ? `${Math.ceil(phoneCooldown)}s` : `AUDIO · ${currentRoom.code}`}
                 </span>
               </button>
+            ) : null}
+          </div>
+
+          <div className="flex items-center justify-between text-[10px] font-mono-tech text-[#cbbda0] px-0.5 shrink-0">
+            <span className="font-bold tracking-wider">PLANO DEL FORO 4 · 10 CÁMARAS</span>
+            {radarActive ? (
+              <span className="px-1.5 py-0.5 bg-emerald-950/90 border border-emerald-500/70 text-emerald-300 font-bold tracking-wider">
+                RADAR ACTIVO
+              </span>
             ) : (
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-1.5 text-[10px] font-mono-tech text-red-400">
-                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                  <span>Cortocircuito de audio. Mantén oprimido para reparar:</span>
-                </div>
-                <button
-                  type="button"
-                  onMouseDown={() => {
-                    soundEngine.playClick(500);
-                    setIsHoldingReboot(true);
-                  }}
-                  onMouseUp={() => setIsHoldingReboot(false)}
-                  onMouseLeave={() => setIsHoldingReboot(false)}
-                  onTouchStart={() => {
-                    soundEngine.playClick(500);
-                    setIsHoldingReboot(true);
-                  }}
-                  onTouchEnd={() => setIsHoldingReboot(false)}
-                  className="relative w-full py-2 px-3 font-mono-tech text-xs font-bold bg-[#4e1812] border-2 border-red-500 text-red-100 hover:bg-[#662018] overflow-hidden cursor-pointer flex items-center justify-center gap-2"
-                >
-                  <div
-                    className="absolute inset-y-0 left-0 bg-amber-500/45 transition-none"
-                    style={{ width: `${rebootProgress}%` }}
-                  />
-                  <RefreshCw
-                    className={`w-4 h-4 relative z-10 ${isHoldingReboot ? 'animate-spin' : ''}`}
-                  />
-                  <span className="relative z-10">
-                    {isHoldingReboot
-                      ? `REPARANDO LÍNEA... ${Math.round(rebootProgress)}%`
-                      : 'MANTENER PARA REINICIAR AUDIO'}
-                  </span>
-                </button>
-              </div>
+              <span className="text-[#998d73]">CAM 01/02 → PUERTAS</span>
             )}
           </div>
 
-          {/* Plano arquitectónico único incrustado directamente en la consola */}
-          <div className="flex items-center justify-between text-[10px] font-mono-tech text-[#cbbda0] px-0.5 shrink-0">
-            <span className="font-bold tracking-wider">PLANO DEL FORO 4 · TOCA UNA CÁMARA</span>
-            <span className="text-[#998d73]">9 CANALES</span>
-          </div>
+          {/* Plano fiel al esquema de referencia (images_11c434e0.png): Fondo negro, ductos grises, salas negras borde blanco, YOU verde */}
+          <div className="relative h-[196px] sm:h-[235px] lg:flex-1 lg:min-h-[290px] bg-black border-[2px] border-[#3d3225] overflow-hidden shadow-[inset_0_0_24px_rgba(0,0,0,0.96)]">
+            <svg
+              viewBox="0 0 260 220"
+              preserveAspectRatio="none"
+              className="absolute inset-0 w-full h-full pointer-events-none"
+            >
+              {/* Ductos de ventilación gris oscuro (#23272e) */}
+              <g fill="#252930">
+                {/* Ducto superior izquierdo desde CAM 07 hacia CAM 09 */}
+                <rect x="34" y="20" width="94" height="10" />
+                <rect x="34" y="20" width="10" height="44" />
+                {/* Ducto lateral izquierdo bajando junto a CAM 06 -> CAM 01 */}
+                <rect x="46" y="124" width="22" height="24" />
+                {/* Salida superior hacia techo */}
+                <rect x="164" y="24" width="10" height="14" />
+                {/* Ducto derecho bajando desde CAM 10 -> costado -> oficina YOU */}
+                <rect x="200" y="54" width="10" height="140" />
+                <rect x="148" y="186" width="62" height="10" />
+                {/* Conexión de ventilación central bajo CAM 05 */}
+                <rect x="98" y="114" width="10" height="20" />
+              </g>
 
-          <div className="relative h-[168px] sm:h-[205px] lg:flex-1 lg:min-h-[260px] bg-[#080c08] border-[2px] border-[#332a20] overflow-hidden shadow-[inset_0_0_32px_rgba(0,0,0,0.96)]">
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full opacity-45">
-              <g stroke="#cfc090" strokeWidth="0.85" fill="none" strokeDasharray="1.8 1.2">
-                <line x1="50" y1="12" x2="17" y2="22" />
-                <line x1="50" y1="12" x2="83" y2="22" />
-                <line x1="50" y1="12" x2="50" y2="39" />
-                <line x1="17" y1="22" x2="17" y2="49" />
-                <line x1="83" y1="22" x2="83" y2="49" />
-                <line x1="17" y1="49" x2="50" y2="39" />
-                <line x1="83" y1="49" x2="50" y2="39" />
-                <line x1="17" y1="49" x2="17" y2="76" />
-                <line x1="83" y1="49" x2="83" y2="76" />
-                <line x1="50" y1="39" x2="50" y2="65" />
-                <line x1="17" y1="76" x2="50" y2="89" />
-                <line x1="83" y1="76" x2="50" y2="89" />
-                <line x1="50" y1="65" x2="50" y2="89" />
+              {/* Estructuras de habitaciones y pasillos en negro con contorno blanco nítido */}
+              <g fill="#050506" stroke="#f4f4f5" strokeWidth="1.6">
+                {/* Sala CAM 09 / 10 (Arriba centro-derecha) */}
+                <rect x="128" y="36" width="54" height="22" />
+                {/* Entrada superior hacia CAM 09 */}
+                <rect x="164" y="28" width="10" height="8" />
+
+                {/* Corredor horizontal superior CAM 08 */}
+                <rect x="90" y="68" width="58" height="22" />
+                {/* Puente vertical CAM 09 -> CAM 08 */}
+                <rect x="134" y="58" width="10" height="10" />
+
+                {/* Corredor vertical izquierdo CAM 07 (arriba) y CAM 06 (abajo) */}
+                <rect x="66" y="50" width="18" height="72" />
+                {/* Puentes hacia CAM 08 y CAM 05 */}
+                <rect x="84" y="74" width="6" height="10" />
+                <rect x="84" y="102" width="6" height="10" />
+
+                {/* Corredor horizontal medio CAM 05 */}
+                <rect x="90" y="96" width="58" height="20" />
+                {/* Puente vertical CAM 08 <-> CAM 05 */}
+                <rect x="100" y="90" width="10" height="6" />
+
+                {/* Corredor horizontal inferior bajo CAM 05 conectando CAM 01 y CAM 02 */}
+                <rect x="90" y="132" width="58" height="20" />
+                <rect x="148" y="136" width="8" height="10" />
+
+                {/* Corredor vertical centro-derecha CAM 02 */}
+                <rect x="156" y="82" width="16" height="72" />
+                <rect x="148" y="100" width="8" height="10" />
+
+                {/* Corredor vertical extremo derecho CAM 04 (arriba) y CAM 03 (abajo) */}
+                <rect x="180" y="82" width="16" height="72" />
+                {/* Puentes entre CAM 02 y CAM 04/03 */}
+                <rect x="172" y="92" width="8" height="9" />
+                <rect x="172" y="136" width="8" height="9" />
+
+                {/* Corredor vertical izquierdo acceso oficina CAM 01 */}
+                <rect x="74" y="132" width="16" height="72" />
+                {/* Pequeño cubículo al fondo de CAM 01 */}
+                <rect x="78" y="204" width="9" height="7" />
+
+                {/* Puente izquierdo directo CAM 01 -> YOU (Oficina) */}
+                <rect x="90" y="176" width="8" height="11" />
+              </g>
+
+              {/* Triángulo blanco indicador arriba a la derecha (entrada ducto techo) */}
+              <polygon points="169,20 165,12 173,12" fill="#f4f4f5" />
+
+              {/* Sala del Jugador (YOU) en verde olivo como images_11c434e0.png */}
+              <g>
+                <rect
+                  x="98"
+                  y="162"
+                  width="50"
+                  height="38"
+                  fill="#7f9b11"
+                  stroke="#eef5c8"
+                  strokeWidth="1.4"
+                />
+                <text
+                  x="123"
+                  y="181"
+                  textAnchor="middle"
+                  fill="#ffffff"
+                  fontSize="10"
+                  fontWeight="700"
+                  fontFamily="JetBrains Mono, monospace"
+                  letterSpacing="1.5"
+                >
+                  YOU
+                </text>
+                <rect x="120.5" y="187" width="5" height="5" fill="#ffffff" />
               </g>
             </svg>
 
-            <CobwebCorner position="top-left" className="w-10 h-10 opacity-35" />
-
-            {CAMERA_ROOMS.map((room) => {
+            {/* Botones de las 10 Cámaras estilo cajas grises con contorno blanco + flecha puntero */}
+            {BLUEPRINT_CAMS.map((spec) => {
+              const room = CAMERA_ROOMS.find((c) => c.id === spec.id);
+              if (!room) return null;
               const selected = room.id === activeCam;
               const broken = Boolean(brokenCams[room.id] && brokenCams[room.id]! > Date.now());
               const isRingingHere = lastRungCam === room.id && phoneCooldown > 0;
-              const coords = MAP_COORDS[room.id];
+              const isChampiBanishHere = champiInterferenceCam === room.id;
+              const isChampiHere =
+                enemyRooms.champi === room.id && !deactivatedEnemies.includes('champi');
+              const isChampiDanger =
+                isChampiHere && (room.id === 'cam1' || room.id === 'cam2');
+              const radarEnemiesHere = radarActive
+                ? (Object.keys(enemyRooms) as TelechobiId[]).filter(
+                    (id) =>
+                      enemyRooms[id] === room.id &&
+                      !deactivatedEnemies.includes(id) &&
+                      !(id === 'champi' && isChampiHere)
+                  )
+                : [];
 
               return (
                 <button
@@ -439,40 +541,180 @@ export function CctvMonitor({
                     onSelectCam(room.id);
                   }}
                   style={{
-                    left: `${coords.x}%`,
-                    top: `${coords.y}%`,
+                    left: `${spec.leftPct}%`,
+                    top: `${spec.topPct}%`,
                   }}
-                  className={`-translate-x-1/2 -translate-y-1/2 absolute w-[29%] max-w-[106px] px-1.5 py-1 border text-center transition-all cursor-pointer shadow-[0_3px_8px_rgba(0,0,0,0.85)] ${
+                  title={`${room.code} · ${room.name}${
+                    radarActive && (isChampiHere || radarEnemiesHere.length > 0)
+                      ? ` (${[
+                          ...(isChampiHere ? ['CHAMPI'] : []),
+                          ...radarEnemiesHere.map((id) => TELECHOBIS[id].name),
+                        ].join(', ')})`
+                      : isChampiHere
+                        ? ' (Champi aquí)'
+                        : ''
+                  }`}
+                  className={`-translate-x-1/2 -translate-y-1/2 absolute min-w-[44px] sm:min-w-[50px] px-1.5 py-1 border-[1.5px] text-left transition-colors cursor-pointer z-10 ${
                     selected
-                      ? 'bg-[#e6dcc0] text-[#17130d] border-amber-300 z-20 ring-1 ring-amber-400'
+                      ? 'bg-[#7f9b11] text-white border-[#f7fee7] z-20 shadow-[0_0_12px_rgba(163,230,53,0.45)]'
                       : broken
-                        ? 'bg-[#3d1512] text-red-200 border-red-500/80 z-10'
-                        : 'bg-[#191712]/95 text-[#dcd2b8] border-[#665b45] hover:bg-[#2a251d] hover:border-amber-400/70 z-10'
+                        ? 'bg-[#5c1616] text-red-100 border-red-400 z-10'
+                        : isChampiBanishHere
+                          ? 'bg-amber-600 text-black border-amber-200 z-20 animate-pulse'
+                          : isChampiHere
+                            ? 'bg-[#3e221d] text-amber-100 border-amber-400 z-20 shadow-[0_0_12px_rgba(251,191,36,0.45)]'
+                            : 'bg-[#45484d] text-white border-white/95 hover:bg-[#5e6369] z-10'
                   }`}
                 >
-                  <div className="flex items-center justify-center gap-1 font-mono-tech text-[10px] font-bold leading-none">
-                    <span>{room.code}</span>
-                    {isRingingHere && (
-                      <PhoneCall
-                        className={`w-2.5 h-2.5 shrink-0 ${
-                          selected ? 'text-amber-700' : 'text-amber-300'
-                        } animate-pulse`}
+                  {/* Icono de ubicación de Champi sobre la cámara en el plano */}
+                  {isChampiHere && (
+                    <span
+                      aria-label="Champi en esta cámara"
+                      className={`pointer-events-none absolute -top-2 -right-2.5 w-6 h-6 sm:w-7 sm:h-7 rounded-full border-2 bg-black/95 overflow-hidden flex items-center justify-center z-30 ${
+                        isChampiDanger
+                          ? 'border-red-500 shadow-[0_0_12px_rgba(239,68,68,0.95)] animate-pulse'
+                          : 'border-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.8)]'
+                      }`}
+                    >
+                      <img
+                        src={TELECHOBIS.champi.spritePath}
+                        alt="Icono Champi"
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-contain scale-110"
                       />
+                    </span>
+                  )}
+
+                  {/* Iconos del Radar (Kit de Supervivencia) sobre la cámara */}
+                  {radarActive && radarEnemiesHere.length > 0 && (
+                    <span className="pointer-events-none absolute -top-2.5 -left-2 flex -space-x-1.5 z-30">
+                      {radarEnemiesHere.map((eid) => {
+                        const emeta = TELECHOBIS[eid];
+                        return (
+                          <span
+                            key={eid}
+                            className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border-[1.5px] bg-black/95 overflow-hidden flex items-center justify-center shadow-[0_0_8px_rgba(0,0,0,0.95)]"
+                            style={{ borderColor: emeta.eyeColor }}
+                          >
+                            <img
+                              src={emeta.spritePath}
+                              alt={emeta.name}
+                              referrerPolicy="no-referrer"
+                              className="w-full h-full object-contain scale-110"
+                            />
+                          </span>
+                        );
+                      })}
+                    </span>
+                  )}
+
+                  {/* Puntero triangular blanco estilo plano técnico */}
+                  {spec.pointer === 'right' && (
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute -right-[7px] top-1/2 -translate-y-1/2 w-0 h-0 border-y-[4px] border-y-transparent border-l-[7px] border-l-white"
+                    />
+                  )}
+                  {spec.pointer === 'left' && (
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute -left-[7px] top-1/2 -translate-y-1/2 w-0 h-0 border-y-[4px] border-y-transparent border-r-[7px] border-r-white"
+                    />
+                  )}
+                  {spec.pointer === 'down' && (
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute -bottom-[7px] left-3 w-0 h-0 border-x-[4px] border-x-transparent border-t-[7px] border-t-white"
+                    />
+                  )}
+                  {spec.pointer === 'up' && (
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute -top-[7px] left-3 w-0 h-0 border-x-[4px] border-x-transparent border-b-[7px] border-b-white"
+                    />
+                  )}
+
+                  <div className="flex items-center justify-between gap-1 font-mono-tech text-[8px] sm:text-[9px] font-bold leading-none tracking-tight">
+                    <span>CAM</span>
+                    {isRingingHere && (
+                      <PhoneCall className="w-2.5 h-2.5 text-amber-300 animate-pulse shrink-0" />
                     )}
                   </div>
-                  <div className="font-mono-tech text-[8px] leading-tight truncate mt-0.5 opacity-85">
-                    {broken ? 'LENTE ROTO' : room.shortName}
+                  <div className="font-mono-tech text-[9px] sm:text-[10px] font-bold leading-none mt-0.5 tabular-nums">
+                    {broken ? 'ERR' : room.code.replace('CAM ', '')}
                   </div>
                 </button>
               );
             })}
 
-            <div
-              style={{ left: '50%', top: '89%' }}
-              className="-translate-x-1/2 -translate-y-1/2 absolute px-2.5 py-0.5 bg-amber-500/20 border border-amber-400/85 text-amber-200 text-[9px] font-mono-tech font-bold tracking-wider whitespace-nowrap"
-            >
-              OFICINA (TÚ)
-            </div>
+            {/* Radar en puertas, pasillo y oficina (alrededor de YOU) */}
+            {radarActive &&
+              (
+                [
+                  {
+                    slot: 'left_door',
+                    leftPct: 37,
+                    topPct: 82,
+                    ids: (Object.keys(enemyRooms) as TelechobiId[]).filter(
+                      (id) => enemyRooms[id] === 'left_door' && !deactivatedEnemies.includes(id)
+                    ),
+                  },
+                  {
+                    slot: 'hall',
+                    leftPct: 47,
+                    topPct: 68,
+                    ids: (Object.keys(enemyRooms) as TelechobiId[]).filter(
+                      (id) =>
+                        (enemyRooms[id] === 'hall_far' || enemyRooms[id] === 'hall_near') &&
+                        !deactivatedEnemies.includes(id)
+                    ),
+                  },
+                  {
+                    slot: 'right_door',
+                    leftPct: 58,
+                    topPct: 82,
+                    ids: (Object.keys(enemyRooms) as TelechobiId[]).filter(
+                      (id) => enemyRooms[id] === 'right_door' && !deactivatedEnemies.includes(id)
+                    ),
+                  },
+                  {
+                    slot: 'office',
+                    leftPct: 47,
+                    topPct: 82,
+                    ids: (Object.keys(enemyRooms) as TelechobiId[]).filter(
+                      (id) => enemyRooms[id] === 'office' && !deactivatedEnemies.includes(id)
+                    ),
+                  },
+                ] as const
+              ).map(
+                (group) =>
+                  group.ids.length > 0 && (
+                    <div
+                      key={group.slot}
+                      style={{ left: `${group.leftPct}%`, top: `${group.topPct}%` }}
+                      className="pointer-events-none -translate-x-1/2 -translate-y-1/2 absolute flex -space-x-1.5 z-30"
+                    >
+                      {group.ids.map((eid) => {
+                        const emeta = TELECHOBIS[eid];
+                        return (
+                          <span
+                            key={eid}
+                            title={`${emeta.name} cerca de la oficina`}
+                            className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 bg-black/95 overflow-hidden flex items-center justify-center animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.85)]"
+                            style={{ borderColor: emeta.eyeColor }}
+                          >
+                            <img
+                              src={emeta.spritePath}
+                              alt={emeta.name}
+                              referrerPolicy="no-referrer"
+                              className="w-full h-full object-contain scale-110"
+                            />
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )
+              )}
           </div>
         </aside>
       </div>

@@ -50,6 +50,7 @@ service cloud.firestore {
         'currentNight',
         'completedNights',
         'night6Completed',
+        'night7Completed',
         'extrasUnlocked',
         'totalDeaths',
         'totalHoursSurvived',
@@ -67,14 +68,18 @@ service cloud.firestore {
       && data.displayName.size() <= 100
       && data.currentNight is int
       && data.currentNight >= 1
-      && data.currentNight <= 6
+      && data.currentNight <= 7
       && data.completedNights is int
       && data.completedNights >= 0
-      && data.completedNights <= 6
+      && data.completedNights <= 7
       && data.night6Completed is bool
+      && data.night6Completed == (data.completedNights >= 6)
+      && (
+        !('night7Completed' in data.keys())
+        || (data.night7Completed is bool && data.night7Completed == (data.completedNights == 7))
+      )
       && data.extrasUnlocked is bool
-      && data.extrasUnlocked == data.night6Completed
-      && data.night6Completed == (data.completedNights == 6)
+      && (!data.extrasUnlocked || data.night6Completed)
       && data.totalDeaths is int
       && data.totalDeaths >= 0
       && data.totalDeaths <= 100000
@@ -101,6 +106,7 @@ service cloud.firestore {
         && incoming().currentNight == 1
         && incoming().completedNights == 0
         && incoming().night6Completed == false
+        && (!('night7Completed' in incoming().keys()) || incoming().night7Completed == false)
         && incoming().extrasUnlocked == false
         && incoming().totalDeaths == 0
         && incoming().totalHoursSurvived == 0
@@ -116,7 +122,10 @@ service cloud.firestore {
         && (
           (
             incoming().diff(existing()).affectedKeys().hasOnly(['currentNight', 'updatedAt'])
-            && incoming().currentNight == 1
+            && (
+              incoming().currentNight == 1
+              || (incoming().currentNight == 7 && existing().night6Completed == true)
+            )
           )
           ||
           (
@@ -124,6 +133,7 @@ service cloud.firestore {
               'currentNight',
               'completedNights',
               'night6Completed',
+              'night7Completed',
               'extrasUnlocked',
               'totalHoursSurvived',
               'bestNightPowerRemaining',
@@ -133,6 +143,7 @@ service cloud.firestore {
               incoming().completedNights == existing().completedNights
               || incoming().completedNights == existing().completedNights + 1
             )
+            && incoming().extrasUnlocked == (existing().extrasUnlocked || incoming().completedNights >= 7)
             && incoming().totalHoursSurvived >= existing().totalHoursSurvived
             && incoming().bestNightPowerRemaining >= existing().bestNightPowerRemaining
           )

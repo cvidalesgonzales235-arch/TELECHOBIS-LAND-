@@ -2,14 +2,22 @@ import { useCallback, useEffect, useState } from 'react';
 import { User } from 'firebase/auth';
 import {
   ensureNewGameSave,
+  getContinueNight,
   recordPlayerDeath,
   saveNightVictory,
   signInWithGoogle,
   signOutPlayer,
   subscribeAuth,
   subscribeToPlayerSave,
+  syncLegacyNight7Continue,
 } from './firebase/client';
-import { JumpscareSource, PlayerSave, ScreenState, TelechobiId } from './types/game';
+import {
+  CustomNightLaunchConfig,
+  JumpscareSource,
+  PlayerSave,
+  ScreenState,
+  TelechobiId,
+} from './types/game';
 import { soundEngine } from './audio/soundEngine';
 import { MainMenu } from './components/MainMenu';
 import { NewspaperIntro } from './components/NewspaperIntro';
@@ -18,6 +26,7 @@ import { OfficeGameplay } from './components/OfficeGameplay';
 import { JumpscareOverlay } from './components/JumpscareOverlay';
 import { VictoryScreen } from './components/VictoryScreen';
 import { ExtrasModal } from './components/ExtrasModal';
+import { NightSetupModal } from './components/NightSetupModal';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -28,6 +37,11 @@ export default function App() {
 
   const [screen, setScreen] = useState<ScreenState>('MENU');
   const [activeNight, setActiveNight] = useState<number>(1);
+  const [activeLaunchConfig, setActiveLaunchConfig] = useState<CustomNightLaunchConfig | undefined>(
+    undefined
+  );
+  const [showNightSelector, setShowNightSelector] = useState(false);
+  const [continueNightModal, setContinueNightModal] = useState<number | null>(null);
   const [muted, setMuted] = useState(false);
 
   const [killer, setKiller] = useState<TelechobiId>('ton');
@@ -56,6 +70,15 @@ export default function App() {
       (save) => {
         setPlayerSave(save);
         setSaveLoading(false);
+        if (
+          save &&
+          (save.night6Completed || save.completedNights >= 6 || save.extrasUnlocked) &&
+          save.currentNight === 6
+        ) {
+          void syncLegacyNight7Continue(user, save).catch((err) => {
+            console.error('Failed to migrate legacy Night 6 save to Night 7:', err);
+          });
+        }
       },
       () => {
         setSaveLoading(false);
@@ -108,6 +131,7 @@ export default function App() {
 
     try {
       await ensureNewGameSave(activeUser);
+      setActiveLaunchConfig(undefined);
       setActiveNight(1);
       soundEngine.stopAmbience();
       setScreen('NEWSPAPER');
@@ -116,25 +140,57 @@ export default function App() {
     }
   }, [user]);
 
+  const isProgressionUnlocked = Boolean(
+    user && (playerSave?.extrasUnlocked || playerSave?.night7Completed)
+  );
+
   const handleContinue = useCallback(() => {
     if (!user || !playerSave) return;
-    const nightToPlay = Math.max(1, Math.min(6, playerSave.currentNight));
+    const nightToPlay = getContinueNight(playerSave);
+    if (nightToPlay === 7) {
+      setContinueNightModal(7);
+      return;
+    }
+    setActiveLaunchConfig(undefined);
     setActiveNight(nightToPlay);
     soundEngine.stopAmbience();
     setScreen('NIGHT_INTRO');
   }, [user, playerSave]);
 
+  const handleLaunchConfig = useCallback((config: CustomNightLaunchConfig) => {
+    setShowNightSelector(false);
+    setContinueNightModal(null);
+    setActiveLaunchConfig(config);
+    setActiveNight(config.night);
+    soundEngine.stopAmbience();
+    setScreen('NIGHT_INTRO');
+  }, []);
+
   const handleOpenExtras = useCallback(() => {
-    if (!playerSave?.extrasUnlocked) return;
+    if (!isProgressionUnlocked) return;
     soundEngine.stopAmbience();
     setScreen('EXTRAS');
-  }, [playerSave]);
+  }, [isProgressionUnlocked]);
 
   const handleNightWin = useCallback(
     async (remainingPower: number) => {
+      soundEngine.stopNightMusic();
+      soundEngine.stopVentSound();
+      soundEngine.stopCharroVoice();
+      soundEngine.stopNonCrawl();
+      soundEngine.stopCamInterference();
       setLastPowerRemaining(remainingPower);
       setScreen('NIGHT_WIN');
-      if (user) {
+      const cheatsUsed = Boolean(
+        activeLaunchConfig?.cheats &&
+          Object.values(activeLaunchConfig.cheats).some(Boolean)
+      );
+      if (
+        user &&
+        !activeLaunchConfig?.isCustomAI &&
+        !activeLaunchConfig?.isDefinitiveNight &&
+        !cheatsUsed
+      ) {
         try {
           await saveNightVictory(user, activeNight, remainingPower);
         } catch (err) {
@@ -142,11 +198,16 @@ export default function App() {
         }
       }
     },
-    [user, activeNight]
+    [user, activeNight, activeLaunchConfig]
   );
 
   const handleJumpscare = useCallback(
     (attacker: TelechobiId, source: JumpscareSource, hoursSurvived: number) => {
+      soundEngine.stopNightMusic();
+      soundEngine.stopVentSound();
+      soundEngine.stopCharroVoice();
+      soundEngine.stopNonCrawl();
+      soundEngine.stopCamInterference();
       setKiller(attacker);
       setKillerSource(source);
       setScreen('JUMPSCARE');
@@ -160,30 +221,50 @@ export default function App() {
   );
 
   const handleVictoryContinue = useCallback(() => {
-    if (activeNight < 6) {
+    if (!activeLaunchConfig && activeNight < 7) {
       setActiveNight((n) => n + 1);
       setScreen('NIGHT_INTRO');
     } else {
+      setActiveLaunchConfig(undefined);
       setScreen('MENU');
     }
-  }, [activeNight]);
+  }, [activeNight, activeLaunchConfig]);
 
   if (screen === 'MENU') {
     return (
-      <MainMenu
-        user={user}
-        authLoading={authLoading}
-        playerSave={playerSave}
-        saveLoading={saveLoading}
-        authError={authError}
-        muted={muted}
-        onToggleMute={handleToggleMute}
-        onSignIn={handleSignIn}
-        onSignOut={handleSignOut}
-        onNewGame={handleNewGame}
-        onContinue={handleContinue}
-        onOpenExtras={handleOpenExtras}
-      />
+      <>
+        <MainMenu
+          user={user}
+          authLoading={authLoading}
+          playerSave={playerSave}
+          saveLoading={saveLoading}
+          authError={authError}
+          muted={muted}
+          onToggleMute={handleToggleMute}
+          onSignIn={handleSignIn}
+          onSignOut={handleSignOut}
+          onNewGame={handleNewGame}
+          onContinue={handleContinue}
+          onSelectNight={() => {
+            if (isProgressionUnlocked) setShowNightSelector(true);
+          }}
+          onOpenExtras={handleOpenExtras}
+        />
+        {showNightSelector && isProgressionUnlocked && (
+          <NightSetupModal
+            onClose={() => setShowNightSelector(false)}
+            onLaunch={handleLaunchConfig}
+          />
+        )}
+        {continueNightModal !== null && (
+          <NightSetupModal
+            initialNight={continueNightModal}
+            allowPickOtherNight={isProgressionUnlocked}
+            onClose={() => setContinueNightModal(null)}
+            onLaunch={handleLaunchConfig}
+          />
+        )}
+      </>
     );
   }
 
@@ -195,6 +276,7 @@ export default function App() {
     return (
       <NightIntroScreen
         night={activeNight}
+        launchConfig={activeLaunchConfig}
         onReady={() => setScreen('PLAYING')}
       />
     );
@@ -205,13 +287,17 @@ export default function App() {
       <OfficeGameplay
         key={`night-${activeNight}`}
         night={activeNight}
+        launchConfig={activeLaunchConfig}
         muted={muted}
         onToggleMute={handleToggleMute}
         onNightWin={handleNightWin}
         onJumpscare={handleJumpscare}
         onExitToMenu={() => {
+          soundEngine.stopNightMusic();
+          soundEngine.stopVentSound();
           soundEngine.stopAmbience();
           soundEngine.stopMaskBreathing();
+          setActiveLaunchConfig(undefined);
           setScreen('MENU');
         }}
       />
@@ -224,10 +310,14 @@ export default function App() {
         killer={killer}
         source={killerSource}
         night={activeNight}
+        isCustomNight={Boolean(activeLaunchConfig?.isCustomAI)}
         phase={screen}
         onJumpscareDone={() => setScreen('GAME_OVER')}
         onRetryNight={() => setScreen('NIGHT_INTRO')}
-        onBackToMenu={() => setScreen('MENU')}
+        onBackToMenu={() => {
+          setActiveLaunchConfig(undefined);
+          setScreen('MENU');
+        }}
       />
     );
   }
@@ -237,14 +327,21 @@ export default function App() {
       <VictoryScreen
         night={activeNight}
         remainingPower={lastPowerRemaining}
-        isNight6={activeNight === 6}
+        isNight6={!activeLaunchConfig?.isDefinitiveNight && activeNight === 6}
+        isNight7={!activeLaunchConfig?.isDefinitiveNight && activeNight === 7}
+        isDefinitiveNight={Boolean(activeLaunchConfig?.isDefinitiveNight)}
         onContinue={handleVictoryContinue}
       />
     );
   }
 
   if (screen === 'EXTRAS') {
-    return <ExtrasModal onBack={() => setScreen('MENU')} />;
+    return (
+      <ExtrasModal
+        onBack={() => setScreen('MENU')}
+        onLaunchConfig={handleLaunchConfig}
+      />
+    );
   }
 
   return null;
