@@ -5,7 +5,6 @@ import {
   Calendar,
   Compass,
   FileText,
-  Flame,
   Newspaper,
   PhoneCall,
   Play,
@@ -19,9 +18,8 @@ import {
 } from 'lucide-react';
 import {
   ALL_ENEMY_IDS,
-  CheatsConfig,
+  BASE_ENEMY_IDS,
   CustomNightLaunchConfig,
-  DEFAULT_CHEATS,
   JumpscareSource,
   OFFICE_ASSETS,
   TELECHOBIS,
@@ -29,28 +27,23 @@ import {
 } from '../types/game';
 import { PHONE_CALLS, SERIES_FULL_HISTORY } from '../data/phoneCallsAndLore';
 import { CobwebCorner, TelechobiSprite } from './TelechobiArt';
-import {
-  CheatsPromptStep,
-  NightSelectorPanel,
-  PersonalizedNightConfigurator,
-} from './NightSetupModal';
+import { NightSelectorPanel, PersonalizedNightConfigurator } from './NightSetupModal';
 import { soundEngine } from '../audio/soundEngine';
 
 interface ExtrasModalProps {
   onBack: () => void;
   onLaunchConfig: (config: CustomNightLaunchConfig) => void;
+  secretUnlocked?: boolean;
 }
 
 type ExtrasTab =
   | 'models'
   | 'personalized'
-  | 'definitive'
   | 'nights'
   | 'guide'
   | 'calls'
   | 'jumpscares'
   | 'files';
-const ROSTER: TelechobiId[] = ALL_ENEMY_IDS;
 
 const JUMPSCARE_ANIM_MAP: Record<JumpscareSource, Partial<Record<TelechobiId, string>>> = {
   left_door: {
@@ -60,7 +53,6 @@ const JUMPSCARE_ANIM_MAP: Record<JumpscareSource, Partial<Record<TelechobiId, st
     tis: 'animate-jumpscare-door-tis',
     arbol: 'animate-jumpscare-door-arbol',
     champi: 'animate-jumpscare-door-champi',
-    non: 'animate-jumpscare-door-non',
   },
   right_door: {
     ton: 'animate-jumpscare-door-ton',
@@ -69,7 +61,6 @@ const JUMPSCARE_ANIM_MAP: Record<JumpscareSource, Partial<Record<TelechobiId, st
     tis: 'animate-jumpscare-door-tis',
     arbol: 'animate-jumpscare-door-arbol',
     champi: 'animate-jumpscare-door-champi',
-    non: 'animate-jumpscare-door-non',
   },
   door: {
     ton: 'animate-jumpscare-door-ton',
@@ -78,7 +69,6 @@ const JUMPSCARE_ANIM_MAP: Record<JumpscareSource, Partial<Record<TelechobiId, st
     tis: 'animate-jumpscare-door-tis',
     arbol: 'animate-jumpscare-door-arbol',
     champi: 'animate-jumpscare-door-champi',
-    non: 'animate-jumpscare-door-non',
   },
   hallway: {
     ton: 'animate-jumpscare-hall-ton',
@@ -87,7 +77,6 @@ const JUMPSCARE_ANIM_MAP: Record<JumpscareSource, Partial<Record<TelechobiId, st
     tis: 'animate-jumpscare-hall-tis',
     arbol: 'animate-jumpscare-hall-arbol',
     champi: 'animate-jumpscare-hall-champi',
-    non: 'animate-jumpscare-hall-non',
   },
   vent: {
     ton: 'animate-jumpscare-vent-ton',
@@ -99,6 +88,8 @@ const JUMPSCARE_ANIM_MAP: Record<JumpscareSource, Partial<Record<TelechobiId, st
   },
   office: {
     charro: 'animate-jumpscare-office-charro',
+    glamrock: 'animate-jumpscare-office-charro',
+    tralalero: 'animate-jumpscare-office-charro',
   },
   oxygen: {},
 };
@@ -114,60 +105,74 @@ const ATTACK_METHODS_GUIDE: Record<
   }
 > = {
   ton: {
-    trait: 'Clásico (3.02s en Personalizada · 2.25s en Definitiva 40 · DESACTIVADO y visible en cámaras durante Noche 7). Mirarlo en CCTV retrasa su paso.',
+    trait: 'Clásico (se vuelve más activo de Noche 1 a Noche 6 · 3.02s en Personalizada · 1.51s en Definitiva 40 · DESACTIVADO en Noche 7). Mirarlo en CCTV retrasa su paso.',
     leftDoor: 'Únicamente llega a la Puerta Izquierda desde CAM 01. Al verlo en el umbral, gira [A] y presiona CERRAR [Q] hasta oír golpes.',
     rightDoor: 'Únicamente llega a la Puerta Derecha desde CAM 02. Gira a la derecha [D] y sella la compuerta [E] de inmediato.',
-    centerHall: 'Entra al Pasillo Central directamente desde CAM 02. Alumbra [ESPACIO] y usa la Máscara [M] hasta que parpadee y se vaya.',
-    vent: 'Ataca por los ductos. Abre Cámaras [W] y usa el Audio en una cámara permitida (CAM 03/05/06/08/09); si tardas, sonará el crujido de puerta previo al ataque.',
+    centerHall: 'Entra al Pasillo Central desde CAM 02 activando el sonido de pasillo de FNAF 2. Alumbra [ESPACIO] y usa la Máscara [M] hasta que parpadee y se vaya.',
+    vent: 'Al bajar al ducto suena Crawl & Rattle + ventilación y aparece en VENT 11 y VENT 12 (también en Radar). Es inmune al Audio en cámaras y en VENT 11; solo es repelido por los Gemidos de Homero al llegar a VENT 12.',
   },
   toso: {
-    trait: 'Clásico (4.97s en Personalizada · 3.6s en Definitiva 40 · DESACTIVADO y visible en cámaras durante Noche 7). Sobrecarga el lente si lo miras demasiado.',
+    trait: 'Clásico (escala cada noche de 1 a 6 · 4.97s en Personalizada · 2.48s en Definitiva 40 · DESACTIVADO en Noche 7). Inmune al Audio en cámaras normales.',
     leftDoor: 'Solo avanza desde CAM 01 hacia la Puerta Izquierda. Gira [A] y sella la compuerta [Q] antes de que termine su espera.',
     rightDoor: 'Solo cruza desde CAM 02 hacia la Puerta Derecha. Gira [D] y sella la compuerta [E] hasta escuchar los golpes.',
-    centerHall: 'Entra al Pasillo Central directamente desde CAM 02. Ponte la Máscara [M] frente a tu escritorio hasta que desaparezca.',
-    vent: 'Ingresa por la ventilación; usa el Audio en CAM 03/05/06/08/09 antes de escuchar el crujido de advertencia previo al jumpscare.',
+    centerHall: 'Entra al Pasillo Central desde CAM 02 reproduciendo el sonido de pasillo de FNAF 2. Ponte la Máscara [M] frente a tu escritorio hasta que desaparezca.',
+    vent: 'Entra a la Ventilación con Crawl & Rattle + sonido de ducto y se muestra en VENT 11 y VENT 12. En VENT 11 ignora los Gemidos de Homero; usa el Audio cuando alcance VENT 12 antes del crujido de puerta.',
   },
   nita: {
-    trait: 'Clásica (5.01s en Personalizada · 3.6s en Definitiva 40 · DESACTIVADA y visible en cámaras durante Noche 7). Vigilar su cámara detiene su conteo.',
+    trait: 'Clásica (más agresiva de Noche 1 a 6 · 5.01s en Personalizada · 2.50s en Definitiva 40 · DESACTIVADA en Noche 7). Vigilar su cámara detiene su conteo; inmune al Audio en cámaras.',
     leftDoor: 'Rodea por CAM 01 hacia la Puerta Izquierda cuando el pasillo está ocupado. Cierra la compuerta [Q] al verla.',
     rightDoor: 'Rodea por CAM 02 hacia la Puerta Derecha. Gira [D] y presiona [E] antes de que se agote tu margen.',
-    centerHall: 'Su ruta predilecta directo desde CAM 02: avanza por el Pasillo Central. Alumbra [ESPACIO] y coloca la Máscara [M].',
-    vent: 'Aprovecha la caída del audio para bajar por el ducto. Repara la línea o activa el Audio en CAM 03/05/06/08/09 antes del crujido de puerta.',
+    centerHall: 'Su ruta predilecta directo desde CAM 02: al entrar al Pasillo Central suena el aviso de FNAF 2. Alumbra [ESPACIO] y coloca la Máscara [M].',
+    vent: 'Al entrar a los ductos (VENT 11 → VENT 12) suena Crawl & Rattle y ventilación. Es inmune al Audio en VENT 11; activa los Gemidos de Homero cuando llegue a VENT 12 para repelerla.',
   },
   tis: {
-    trait: 'Clásica (4.97s en Personalizada · 3.6s en Definitiva 40 · DESACTIVADA y visible en cámaras durante Noche 7). Acecha en silencio mientras alumbras el centro.',
+    trait: 'Clásica (más rápida de Noche 1 a 6 · 4.97s en Personalizada · 2.48s en Definitiva 40 · DESACTIVADA en Noche 7). Inmune al Audio en cámaras normales.',
     leftDoor: 'Se desliza únicamente desde CAM 01 hacia la Puerta Izquierda. Revisa con [A] y presiona CERRAR [Q].',
     rightDoor: 'Acecha la Puerta Derecha desde CAM 02. Gira [D] con frecuencia y sella [E] en cuanto aparezca.',
-    centerHall: 'Entra directamente desde CAM 02 al Pasillo Central. Ponte la Máscara [M] sin retirarla antes del parpadeo.',
-    vent: 'Entra por la ventilación en turnos rotativos; usa el Audio en CAM 03/05/06/08/09 antes de que suene el crujido previo al ataque.',
+    centerHall: 'Entra directamente desde CAM 02 al Pasillo Central con el sonido de pasillo de FNAF 2. Ponte la Máscara [M] sin retirarla antes del parpadeo.',
+    vent: 'Se desplaza por VENT 11 y VENT 12 (suena Crawl & Rattle al entrar y aparece en Radar). Solo es vulnerable a los Gemidos de Homero cuando alcanza VENT 12.',
   },
   arbol: {
-    trait: 'Jefe Noche 7 y Definitiva (40) · Sale de CAM 09 por teletransportación tras su risa grave. En Noche 7 respeta turnos 1 a 1 con 5s de reposo al retirarse.',
-    leftDoor: 'Se teletransporta directo a la Puerta Izquierda tras su risa grave. Mientras ataca nadie más puede atacar; gira [A] y cierra [Q].',
-    rightDoor: 'Aparece de improviso en la Puerta Derecha tras reír. Gira [D] y sella [E] hasta escuchar los golpes.',
-    centerHall: 'Aparece En Frente de tu escritorio en el Pasillo Central tras reír. Alumbra [ESPACIO] y mantén la Máscara [M] hasta que parpadee.',
-    vent: 'Baja por la Ventilación mezclando el sonido de ductos con su risa grave a menor volumen. Usa el Audio en CAM 03/05/06/08/09 antes del crujido de puerta.',
+    trait: 'Jefe Noche 7 y Definitiva (40) · ÚNICO enemigo capaz de teletransportarse entre todas las cámaras (CAM 01–10) y directo desde CAM 09 hacia puertas, pasillo central o ventilación con la risa grave de FNAF 4 (inmune al Audio en cámaras; 5s de reposo al retirarse).',
+    leftDoor: 'Se teletransporta desde CAM 09 directo a la Puerta Izquierda tras reír. Mientras ataca nadie más puede atacar; gira [A] y cierra [Q].',
+    rightDoor: 'Se teletransporta directo a la Puerta Derecha tras su risa de FNAF 4. Gira [D] y sella [E] hasta escuchar los golpes.',
+    centerHall: 'Se teletransporta directo En Frente de tu escritorio reproduciendo su risa de Nightmare (no el sonido de FNAF 2). Alumbra [ESPACIO] y mantén la Máscara [M] hasta que parpadee.',
+    vent: 'Se teletransporta desde CAM 09 a la Ventilación (VENT 11 → VENT 12) con su risa de Nightmare + Crawl & Rattle. Ignora el Audio en VENT 11; repélelo con los Gemidos en VENT 12.',
   },
   champi: {
-    trait: 'Jefe Noche 7 y Definitiva (40) · ÚNICO enemigo al que debes buscar en las cámaras. Tiene ICONO propio en el plano y patina por CAM 03–10 hasta CAM 01/02; al llegar a CAM 01/02 desactiva a los demás para poder evitarlo (5s de reposo al expulsarlo).',
-    leftDoor: 'SCREAMER #1 (INSTANTÁNEO): Si no lo encuentras y observas (~0.55s) en el CCTV antes de salir de CAM 01, oirás su carrera rápida y te matará al instante.',
-    rightDoor: 'SCREAMER #2 (INSTANTÁNEO): Si alcanza CAM 02 y agota su espera sin ser detenido en cámaras, correrá y te matará al instante en la Puerta Derecha.',
-    centerHall: 'SCREAMER #3 (INSTANTÁNEO): Si cruza CAM 02 (o la puerta está bloqueada) sin que lo detengas en el CCTV, correrá al Pasillo Central y te matará al instante. Búscalo y míralo en cámaras para mandarlo de vuelta a CAM 09.',
+    trait: 'Jefe Noche 7 y Definitiva (40) · ÚNICO al que debes buscar en las cámaras (inmune al Audio). Tiene ICONO propio y patina por CAM 03–10 con Gears 1 hasta CAM 01/02 (5s de reposo). En Noche Definitiva tiene un truco exclusivo que lo evita automáticamente en CAM 01/02 sin abrir el monitor, pero activar trucos fija la noche en 12 min reales.',
+    leftDoor: 'SCREAMER #1 (INSTANTÁNEO): Si no lo encuentras y observas (~0.55s) en el CCTV antes de salir de CAM 01, oirás su carrera rápida (Foxy Running) y te matará al instante.',
+    rightDoor: 'SCREAMER #2 (INSTANTÁNEO): Si alcanza CAM 02 y agota su espera sin ser detenido en cámaras (o sin el truco exclusivo en Definitiva), correrá y te matará al instante en la Puerta Derecha.',
+    centerHall: 'SCREAMER #3 (INSTANTÁNEO): Si cruza CAM 02 sin que lo detengas en el CCTV, correrá al Pasillo Central y te matará al instante. Míralo en el monitor para mandarlo a CAM 09.',
     vent: 'NO ATACA POR VENTILACIÓN · Nunca entra a los ductos ni emite el crujido de puerta. Solo tiene 3 Screamers (Puerta Izq., Puerta Der. y Pasillo Central).',
   },
   non: {
-    trait: 'Jefe Noche 7 y Definitiva (40) · Sale de CAM 09 sin piernas y se arrastra cámara por cámara con sonido metálico hasta CAM 01/02; emite su carcajada macabra al atacar y deja 5s de descanso al irse.',
-    leftDoor: 'Llega arrastrándose desde CAM 01 con su carcajada siniestra. Gira [A] y cierra la Puerta Izquierda [Q] de inmediato.',
-    rightDoor: 'Se desliza desde CAM 02 hacia la Puerta Derecha tras reír. Gira [D] y presiona CERRAR [E].',
-    centerHall: 'Asoma En Frente de tu escritorio directamente desde CAM 02. Ponte la Máscara [M] frente al pasillo hasta que parpadee.',
-    vent: 'Repta por la Ventilación mezclando el ruido de ductos con su carcajada y golpe metálico. Activa el Audio en CAM 03/05/06/08/09 antes del crujido de puerta.',
+    trait: 'Jefe Noche 7 y Definitiva (40) · ÚNICO enemigo vulnerable a los Gemidos de Homero desde VENT 11 (además de VENT 12). Pausa brevemente en CAM 10 antes de entrar a los ductos con Crawl & Rattle + sonido de puerta; deja 5s de descanso al ser espantado (con Gemidos Infinitos huye al instante).',
+    leftDoor: 'NO ATACA POR PUERTA IZQUIERDA · Se eliminó por completo su acceso por puertas laterales.',
+    rightDoor: 'NO ATACA POR PUERTA DERECHA · Nunca aparece en la puerta derecha ni en su umbral.',
+    centerHall: 'NO ATACA EN EL PASILLO CENTRAL · Tampoco aparece frente al escritorio; su único Screamer está en la Ventilación.',
+    vent: 'ÚNICO SCREAMER (VENTILACIÓN VENT 11 → VENT 12): Entra desde CAM 10 con sonido de puerta + Crawl & Rattle y ventilación. Es el único afectado por el Audio tanto en VENT 11 como en VENT 12 (o huye al instante con Gemidos Infinitos).',
   },
   charro: {
-    trait: 'Jefe Noche 7 y Definitiva (40) · Rompe lentes de cámaras (14s sin señal con estallido de vidrio) y es el ÚNICO personaje con 1 solo Screamer (solo ataca en Oficina). Deja 5s de descanso al evitarlo.',
+    trait: 'Jefe Noche 7 y Definitiva (40) · Rompe lentes de cámaras (vidrio roto, 14s sin señal) y tiene 1 solo Screamer (Oficina). Su voz ("Devolver el alma de Beatriz...") suena al aparecer de frente y se corta al instante al ponerte la Máscara o abrir Cámaras.',
     leftDoor: 'NO ATACA POR PUERTA IZQUIERDA · Únicamente destroza cámaras y se manifiesta de frente en la Oficina Central.',
     rightDoor: 'NO ATACA POR PUERTA DERECHA · Nunca se asoma por las puertas laterales ni tiene jumpscare de puerta.',
-    centerHall: 'ÚNICO SCREAMER (OFICINA CENTRAL): Aparece directamente frente al escritorio. Solo puede matarte si NO usas la Máscara [M] ni abres las Cámaras [W].',
+    centerHall: 'ÚNICO SCREAMER (OFICINA CENTRAL): Aparece directamente frente al escritorio con su voz ("Devolver el alma de Beatriz..."). Solo puede matarte si NO usas la Máscara [M] ni abres las Cámaras [W] para cortarlo.',
     vent: 'NO ATACA POR VENTILACIÓN · Nunca entra en los ductos ni emite el crujido de advertencia.',
+  },
+  glamrock: {
+    trait: 'Entidad Secreta (Segunda Oficina y Personalizada) · Sin patrón de cámaras: aparece directo en cualquier lado disponible de la habitación y acelera cada segundo.',
+    leftDoor: 'Aparece en las paredes de la habitación (Centro, Izquierda, Derecha o Atrás en la Segunda Oficina). En la Oficina Principal NUNCA aparece atrás ni en el Generador.',
+    rightDoor: 'Al instante de aparecer grita "ES HORA DE DE DE DE DEL DUELO!". Mientras está activo, Tralalero Faz-Shark queda deshabilitado hasta que se marche.',
+    centerHall: 'Gira hacia su lado y presiona "FARMEANDING AURA" para iniciar la Batalla de Aura con la canción oficial y los 8 gestos (Six-Seven 6-7, Mewing, Saludo Fake, Sigma y más).',
+    vent: 'NO USA CÁMARAS NI VENTILACIÓN · Cuando termina la batalla se retira y la canción del duelo se corta al instante.',
+  },
+  tralalero: {
+    trait: 'Entidad Secreta (Segunda Oficina y Personalizada) · Sin patrón de cámaras: ataca directo por los muros de la oficina y aumenta su velocidad cada segundo.',
+    leftDoor: 'Aparece en cualquiera de los 4 lados de la Segunda Oficina. En la Oficina Principal solo aparece en Izquierda, Centro o Derecha (NUNCA en el cuarto trasero del Generador).',
+    rightDoor: 'Durante todo su ataque suena sin parar "Tralalero Tralala". Mientras ataca, Glamrock Aura queda deshabilitado hasta que espantes al tiburón.',
+    centerHall: 'Gira hacia su muro y presiona "MOSTRAR CURRÍCULUM VITAE" para mostrarle tu hoja de vida con sonido de papel y ahuyentarlo de inmediato.',
+    vent: 'NO USA CÁMARAS NI VENTILACIÓN · Al mostrarle el Currículum Vitae huye al instante y la canción "Tralalero Tralala" se corta de inmediato.',
   },
 };
 
@@ -226,6 +231,18 @@ const CHARACTER_LORE: Record<
     originYear: 'Eterno · Acreedor de Alonso y Beatriz',
     loreText:
       'Tras cerrar el trato con Alonso Córdova a cambio de que la televisora le pagara, El Charro Negro reclamó la tragedia del elenco en el Foro 4 y terminó quedándose también con el alma de Beatriz. Destroza las cámaras a su paso y aparece directamente frente al guardia exigiendo cobrar el resto del pacto.',
+  },
+  glamrock: {
+    actor: 'Glamrock Aura · Entidad Viral de Aura +1000',
+    originYear: 'Edición Secreta 1999 · Segunda Oficina',
+    loreText:
+      'Prototipo anómalo obsesionado con mantener el medidor de Aura en +1000 MAXED. Desprecia las cámaras de seguridad y aparece directamente en los cuatro costados de la sala para retar al guardia a un duelo coreografiado de Six-Seven (6-7), Mewing, Saludo Fake y poses Sigma.',
+  },
+  tralalero: {
+    actor: 'Tralalero Faz-Shark · Anomalía Brainrot Italiana',
+    originYear: 'Edición Secreta 1999 · Segunda Oficina',
+    loreText:
+      'Tiburón animatrónico ensamblado con un caza F-16, tenis rojo de colección, cafetera espresso y cañón de pasta. Su única debilidad documentada por el departamento de Recursos Humanos de Ajusco es el terror absoluto al trabajo formal: ver un Currículum Vitae lo hace huir despavorido.',
   },
 };
 
@@ -304,7 +321,8 @@ const LAWSUIT_DOCUMENTS = [
   },
 ];
 
-export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
+export function ExtrasModal({ onBack, onLaunchConfig, secretUnlocked = false }: ExtrasModalProps) {
+  const visibleRoster: TelechobiId[] = secretUnlocked ? ALL_ENEMY_IDS : BASE_ENEMY_IDS;
   const [tab, setTab] = useState<ExtrasTab>('models');
   const [selectedChar, setSelectedChar] = useState<TelechobiId>('ton');
   const [xrayEndo, setXrayEndo] = useState(false);
@@ -322,12 +340,9 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
   const [playingSegIdx, setPlayingSegIdx] = useState<number | null>(null);
   const callPlaybackTokenRef = useRef(0);
 
-  // Noche Definitiva (40) cheats prompt state
-  const [definitiveCheatsStep, setDefinitiveCheatsStep] = useState(false);
-  const [definitiveCheats, setDefinitiveCheats] = useState<CheatsConfig>({ ...DEFAULT_CHEATS });
-
-  const meta = TELECHOBIS[selectedChar];
-  const charLore = CHARACTER_LORE[selectedChar];
+  const safeSelectedChar = visibleRoster.includes(selectedChar) ? selectedChar : 'ton';
+  const meta = TELECHOBIS[safeSelectedChar];
+  const charLore = CHARACTER_LORE[safeSelectedChar];
 
   const stopCallPlayback = () => {
     callPlaybackTokenRef.current += 1;
@@ -338,6 +353,7 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
 
   useEffect(() => {
     soundEngine.unlock();
+    soundEngine.startMenuMusic();
     return () => {
       if (previewTimerRef.current) {
         window.clearTimeout(previewTimerRef.current);
@@ -420,39 +436,14 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
   const switchTab = (next: ExtrasTab) => {
     soundEngine.playClick(640);
     if (next !== 'calls') stopCallPlayback();
-    if (next !== 'definitive') setDefinitiveCheatsStep(false);
     setTab(next);
   };
 
-  const launchDefinitiveNight = (selectedCheats: CheatsConfig) => {
-    stopCallPlayback();
-    soundEngine.stopJumpscare();
-    onLaunchConfig({
-      night: 7,
-      isCustomAI: true,
-      isDefinitiveNight: true,
-      aiLevels: {
-        ton: 40,
-        toso: 40,
-        nita: 40,
-        tis: 40,
-        arbol: 40,
-        champi: 40,
-        non: 40,
-        charro: 40,
-      },
-      enableGeneratorRecharge: true,
-      durationMinutes: 6,
-      cheats: selectedCheats,
-      title: 'NOCHE DEFINITIVA · 8/40',
-    });
-  };
-
   return (
-    <div className="relative w-screen h-screen bg-[#070709] text-zinc-100 flex flex-col overflow-hidden">
+    <div className="relative w-full h-dvh bg-[#070709] text-zinc-100 flex flex-col overflow-hidden">
       {/* Top Bar */}
-      <header className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 py-3.5 border-b border-[#4d3d30] rust-panel-90s shrink-0">
-        <div className="flex items-center gap-3 sm:gap-4">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 sm:gap-3 px-3 sm:px-6 py-2.5 sm:py-3.5 border-b border-[#4d3d30] rust-panel-90s shrink-0">
+        <div className="flex items-center gap-2.5 sm:gap-4 min-w-0">
           <button
             type="button"
             onClick={() => {
@@ -461,27 +452,27 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
               soundEngine.playClick(560);
               onBack();
             }}
-            className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-mono-tech bg-[#1c1915] border border-[#5c4838] text-[#dfd5bd] hover:bg-[#2a241d] cursor-pointer"
+            className="min-h-[40px] sm:min-h-[44px] shrink-0 inline-flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 text-xs font-mono-tech bg-[#1c1915] border border-[#5c4838] text-[#dfd5bd] hover:bg-[#2a241d] cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
             Volver
           </button>
-          <div>
-            <h2 className="font-display text-xl sm:text-2xl tracking-wider text-amber-300 leading-none">
+          <div className="min-w-0">
+            <h2 className="font-display text-lg sm:text-2xl tracking-wider text-amber-300 leading-none truncate">
               EXTRAS · ARCHIVO DESCLASIFICADO
             </h2>
-            <p className="text-[11px] font-mono-tech text-[#b4aa92] mt-1">
-              Personalized Night · Noche Definitiva (40) · Noches 1–7 · Guía · Llamadas · Hemeroteca
+            <p className="text-[10px] sm:text-[11px] font-mono-tech text-[#b4aa92] mt-1 truncate">
+              Personalized Night · Noches 1–7 · Guía · Llamadas · Hemeroteca
             </p>
           </div>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+        <div className="flex flex-nowrap overflow-x-auto no-scrollbar md:flex-wrap items-center gap-1.5 sm:gap-2 w-full md:w-auto pb-0.5">
           <button
             type="button"
             onClick={() => switchTab('models')}
-            className={`px-3 py-1.5 text-[11px] font-mono-tech inline-flex items-center gap-1.5 border cursor-pointer ${
+            className={`min-h-[38px] whitespace-nowrap shrink-0 px-3 py-1.5 text-[11px] font-mono-tech inline-flex items-center gap-1.5 border cursor-pointer ${
               tab === 'models'
                 ? 'bg-amber-400 text-black border-amber-200 font-bold'
                 : 'bg-[#1c1915] text-[#d6ccb4] border-[#5c4838] hover:bg-[#2a241d]'
@@ -493,7 +484,7 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
           <button
             type="button"
             onClick={() => switchTab('personalized')}
-            className={`px-3 py-1.5 text-[11px] font-mono-tech inline-flex items-center gap-1.5 border cursor-pointer ${
+            className={`min-h-[38px] whitespace-nowrap shrink-0 px-3 py-1.5 text-[11px] font-mono-tech inline-flex items-center gap-1.5 border cursor-pointer ${
               tab === 'personalized'
                 ? 'bg-amber-400 text-black border-amber-200 font-bold'
                 : 'bg-[#1c1915] text-[#d6ccb4] border-[#5c4838] hover:bg-[#2a241d]'
@@ -504,20 +495,8 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
           </button>
           <button
             type="button"
-            onClick={() => switchTab('definitive')}
-            className={`px-3 py-1.5 text-[11px] font-mono-tech inline-flex items-center gap-1.5 border cursor-pointer ${
-              tab === 'definitive'
-                ? 'bg-red-600 text-white border-red-300 font-bold shadow-[0_0_16px_rgba(220,38,38,0.55)]'
-                : 'bg-[#2a0b09] text-red-200 border-red-700/80 hover:bg-[#3f120f]'
-            }`}
-          >
-            <Flame className="w-3.5 h-3.5" />
-            Noche Definitiva (40)
-          </button>
-          <button
-            type="button"
             onClick={() => switchTab('nights')}
-            className={`px-3 py-1.5 text-[11px] font-mono-tech inline-flex items-center gap-1.5 border cursor-pointer ${
+            className={`min-h-[38px] whitespace-nowrap shrink-0 px-3 py-1.5 text-[11px] font-mono-tech inline-flex items-center gap-1.5 border cursor-pointer ${
               tab === 'nights'
                 ? 'bg-amber-400 text-black border-amber-200 font-bold'
                 : 'bg-[#1c1915] text-[#d6ccb4] border-[#5c4838] hover:bg-[#2a241d]'
@@ -529,7 +508,7 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
           <button
             type="button"
             onClick={() => switchTab('guide')}
-            className={`px-3 py-1.5 text-[11px] font-mono-tech inline-flex items-center gap-1.5 border cursor-pointer ${
+            className={`min-h-[38px] whitespace-nowrap shrink-0 px-3 py-1.5 text-[11px] font-mono-tech inline-flex items-center gap-1.5 border cursor-pointer ${
               tab === 'guide'
                 ? 'bg-amber-400 text-black border-amber-200 font-bold'
                 : 'bg-[#1c1915] text-[#d6ccb4] border-[#5c4838] hover:bg-[#2a241d]'
@@ -541,7 +520,7 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
           <button
             type="button"
             onClick={() => switchTab('calls')}
-            className={`px-3 py-1.5 text-[11px] font-mono-tech inline-flex items-center gap-1.5 border cursor-pointer ${
+            className={`min-h-[38px] whitespace-nowrap shrink-0 px-3 py-1.5 text-[11px] font-mono-tech inline-flex items-center gap-1.5 border cursor-pointer ${
               tab === 'calls'
                 ? 'bg-amber-400 text-black border-amber-200 font-bold'
                 : 'bg-[#1c1915] text-[#d6ccb4] border-[#5c4838] hover:bg-[#2a241d]'
@@ -553,19 +532,19 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
           <button
             type="button"
             onClick={() => switchTab('jumpscares')}
-            className={`px-3 py-1.5 text-[11px] font-mono-tech inline-flex items-center gap-1.5 border cursor-pointer ${
+            className={`min-h-[38px] whitespace-nowrap shrink-0 px-3 py-1.5 text-[11px] font-mono-tech inline-flex items-center gap-1.5 border cursor-pointer ${
               tab === 'jumpscares'
                 ? 'bg-amber-400 text-black border-amber-200 font-bold'
                 : 'bg-[#1c1915] text-[#d6ccb4] border-[#5c4838] hover:bg-[#2a241d]'
             }`}
           >
             <Skull className="w-3.5 h-3.5" />
-            Jumpscares (28)
+            Jumpscares ({secretUnlocked ? 27 : 25})
           </button>
           <button
             type="button"
             onClick={() => switchTab('files')}
-            className={`px-3 py-1.5 text-[11px] font-mono-tech inline-flex items-center gap-1.5 border cursor-pointer ${
+            className={`min-h-[38px] whitespace-nowrap shrink-0 px-3 py-1.5 text-[11px] font-mono-tech inline-flex items-center gap-1.5 border cursor-pointer ${
               tab === 'files'
                 ? 'bg-amber-400 text-black border-amber-200 font-bold'
                 : 'bg-[#1c1915] text-[#d6ccb4] border-[#5c4838] hover:bg-[#2a241d]'
@@ -578,24 +557,24 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
       </header>
 
       {/* Tab Content */}
-      <main className="flex-1 overflow-y-auto p-4 sm:p-6">
+      <main className="flex-1 overflow-y-auto p-3 sm:p-6">
         {tab === 'models' && (
-          <div className="max-w-6xl mx-auto space-y-6">
+          <div className="max-w-6xl mx-auto space-y-5 sm:space-y-6">
             {/* Character Image Showcase + Dossier (Replaces procedural 3D viewer with real character artwork) */}
             <div className="border-2 border-[#4d3d30] bg-[#080706] overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.95)]">
               <div className="grid grid-cols-1 lg:grid-cols-12">
                 {/* Left/Top Stage: Clean Real Character Image with Studio Spotlight */}
                 <div
-                  className="lg:col-span-6 relative min-h-[340px] sm:min-h-[430px] flex items-end justify-center overflow-hidden p-4 border-b lg:border-b-0 lg:border-r border-[#3d3024]"
+                  className="lg:col-span-6 relative min-h-[240px] sm:min-h-[360px] lg:min-h-[430px] flex items-end justify-center overflow-hidden p-4 border-b lg:border-b-0 lg:border-r border-[#3d3024]"
                   style={{ background: spotlightBg }}
                 >
-                  <CobwebCorner position="top-left" className="w-16 h-16 opacity-35 z-10" />
-                  <CobwebCorner position="top-right" className="w-16 h-16 opacity-35 z-10" />
+                  <CobwebCorner position="top-left" className="w-12 h-12 sm:w-16 sm:h-16 opacity-35 z-10" />
+                  <CobwebCorner position="top-right" className="w-12 h-12 sm:w-16 sm:h-16 opacity-35 z-10" />
                   <div className="pointer-events-none absolute inset-0 crt-scanlines opacity-35 z-10" />
 
                   {/* Floor Pedestal Shadow */}
                   <div
-                    className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 w-64 h-8 rounded-full opacity-85"
+                    className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 w-52 sm:w-64 h-8 rounded-full opacity-85"
                     style={{
                       background:
                         'radial-gradient(ellipse at center, rgba(0,0,0,0.95) 0%, transparent 72%)',
@@ -606,7 +585,7 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
                     src={meta.spritePath}
                     alt={`Botarga real de ${meta.name}`}
                     referrerPolicy="no-referrer"
-                    className="relative z-20 max-h-[360px] sm:max-h-[400px] w-auto object-contain transition-all duration-200 select-none"
+                    className="relative z-20 max-h-[220px] sm:max-h-[360px] lg:max-h-[400px] w-auto object-contain transition-all duration-200 select-none"
                     style={{
                       filter: xrayEndo
                         ? 'contrast(1.9) brightness(0.88) invert(0.92) hue-rotate(180deg) drop-shadow(0 0 28px rgba(220,38,38,0.65))'
@@ -618,13 +597,13 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
                     }}
                   />
 
-                  <span className="pointer-events-none absolute top-3 left-3 z-20 px-2.5 py-1 bg-black/75 border border-[#4d3d30] font-mono-tech text-[10px] text-[#c9bfa4] tracking-wider">
+                  <span className="pointer-events-none absolute top-2.5 left-2.5 sm:top-3 sm:left-3 z-20 px-2 sm:px-2.5 py-1 bg-black/75 border border-[#4d3d30] font-mono-tech text-[9px] sm:text-[10px] text-[#c9bfa4] tracking-wider">
                     MODELO OFICIAL · ARCHIVO FORO 4
                   </span>
                 </div>
 
                 {/* Right/Bottom Character Info & Individual Soul Lore */}
-                <div className="lg:col-span-6 p-5 sm:p-6 flex flex-col justify-between gap-5 bg-[#0e0c0a]">
+                <div className="lg:col-span-6 p-4 sm:p-6 flex flex-col justify-between gap-4 sm:gap-5 bg-[#0e0c0a]">
                   <div className="space-y-4">
                     <div>
                       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -671,9 +650,9 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
               </div>
 
               {/* Controls Footer: Character Selector + Lighting / X-Ray */}
-              <div className="rust-panel-90s border-t border-[#4d3d30] px-4 sm:px-5 py-3 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  {ROSTER.map((id) => (
+              <div className="rust-panel-90s border-t border-[#4d3d30] px-3 sm:px-5 py-3 flex flex-wrap items-center justify-between gap-2.5 sm:gap-3">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  {visibleRoster.map((id) => (
                     <button
                       key={id}
                       type="button"
@@ -681,8 +660,8 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
                         soundEngine.playClick(680);
                         setSelectedChar(id);
                       }}
-                      className={`px-3.5 py-1.5 text-xs font-mono-tech border cursor-pointer ${
-                        selectedChar === id
+                      className={`min-h-[38px] sm:min-h-[40px] px-3 sm:px-3.5 py-1.5 text-xs font-mono-tech border cursor-pointer ${
+                        safeSelectedChar === id
                           ? 'bg-[#d6ccb4] text-black border-white font-bold'
                           : 'bg-[#1c1915] text-[#d6ccb4] border-[#5c4838] hover:bg-[#2a241d]'
                       }`}
@@ -692,14 +671,14 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
                   ))}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   <button
                     type="button"
                     onClick={() => {
                       soundEngine.playClick(600);
                       setXrayEndo((w) => !w);
                     }}
-                    className={`px-3 py-1.5 text-xs font-mono-tech border cursor-pointer ${
+                    className={`min-h-[38px] sm:min-h-[40px] px-3 py-1.5 text-xs font-mono-tech border cursor-pointer ${
                       xrayEndo
                         ? 'bg-red-950 text-red-200 border-red-500'
                         : 'bg-[#1c1915] text-[#d6ccb4] border-[#5c4838]'
@@ -717,7 +696,7 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
                           soundEngine.playClick(620);
                           setSpotlightTint(tint);
                         }}
-                        className={`px-2.5 py-1 text-[11px] font-mono-tech cursor-pointer ${
+                        className={`min-h-[34px] px-2.5 py-1 text-[11px] font-mono-tech cursor-pointer ${
                           spotlightTint === tint
                             ? 'bg-[#d6ccb4] text-black font-bold'
                             : 'text-[#a39982]'
@@ -810,6 +789,7 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
         {tab === 'personalized' && (
           <PersonalizedNightConfigurator
             embedded
+            secretUnlocked={secretUnlocked}
             onLaunch={(cfg) => {
               stopCallPlayback();
               soundEngine.stopJumpscare();
@@ -818,193 +798,9 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
           />
         )}
 
-        {tab === 'definitive' && (
-          <div className="max-w-5xl mx-auto space-y-5">
-            {definitiveCheatsStep ? (
-              <CheatsPromptStep
-                title="NOCHE DEFINITIVA · MODO SECRETO 8/40"
-                subtitle="Los 8 enemigos en Dificultad 40 (exclusivo de Extras · no forma parte de la campaña)"
-                cheats={definitiveCheats}
-                onToggleCheat={(key) => {
-                  soundEngine.playClick(640);
-                  setDefinitiveCheats((prev) => ({ ...prev, [key]: !prev[key] }));
-                }}
-                onSelectAll={(enable) => {
-                  soundEngine.playClick(680);
-                  setDefinitiveCheats({
-                    noAudioErrorsInstant: enable,
-                    infinitePower: enable,
-                    doorsClosedStart: enable,
-                    infiniteOxygen: enable,
-                    radar: enable,
-                    infiniteHomerMoans: enable,
-                  });
-                }}
-                onBack={() => {
-                  soundEngine.playClick(540);
-                  setDefinitiveCheatsStep(false);
-                }}
-                onConfirm={() => {
-                  soundEngine.playClick(840);
-                  launchDefinitiveNight(definitiveCheats);
-                }}
-              />
-            ) : (
-              <div className="relative border-2 border-red-600/80 bg-gradient-to-b from-[#1e0706] via-[#110808] to-[#080606] p-6 sm:p-8 space-y-6 shadow-[0_24px_80px_rgba(185,28,28,0.28)] overflow-hidden">
-                <CobwebCorner position="top-left" className="w-16 h-16 opacity-35" />
-                <CobwebCorner position="top-right" className="w-16 h-16 opacity-35" />
-
-                <div className="flex flex-wrap items-start justify-between gap-4 border-b border-red-900/70 pb-5">
-                  <div>
-                    <div className="inline-flex items-center gap-2 px-2.5 py-0.5 bg-red-950/90 border border-red-500/70 font-mono-tech text-[10px] tracking-[0.24em] text-red-200 uppercase">
-                      <Flame className="w-3.5 h-3.5 text-amber-400" />
-                      MODO SECRETO EXCLUSIVO DE EXTRAS · NO ES PARTE DEL JUEGO
-                    </div>
-                    <h3 className="font-display text-4xl sm:text-5xl text-amber-300 tracking-wider mt-2 leading-none">
-                      NOCHE DEFINITIVA · DIFICULTAD 8 / 40
-                    </h3>
-                    <p className="text-xs sm:text-sm text-[#dfd5bd] mt-2 max-w-2xl leading-relaxed">
-                      En la Noche Personalizada el máximo permitido es 20, pero aquí{' '}
-                      <strong className="text-red-300">
-                        los 8 enemigos completos (Ton, Toso, Nita, Tis, Árbol, Champi, Ñon y El
-                        Charro Negro)
-                      </strong>{' '}
-                      atacan simultáneamente en <strong className="text-amber-300">Dificultad 40</strong>.
-                    </p>
-                  </div>
-
-                  <div className="px-4 py-2.5 bg-black/80 border-2 border-red-500 text-center shrink-0">
-                    <div className="font-display text-4xl text-red-400 leading-none tabular-nums">
-                      40
-                    </div>
-                    <div className="font-mono-tech text-[9px] text-amber-300 tracking-widest mt-1">
-                      IA NIVEL EXTREMO
-                    </div>
-                  </div>
-                </div>
-
-                {/* All 8 enemies locked at 40 */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {ROSTER.map((id) => {
-                    const char = TELECHOBIS[id];
-                    return (
-                      <div
-                        key={id}
-                        className="border border-red-900/75 bg-black/75 p-3 flex items-center gap-3"
-                      >
-                        <div className="w-12 h-14 shrink-0 bg-[#0d0707] border border-[#4d3d30] flex items-end justify-center overflow-hidden">
-                          <img
-                            src={char.spritePath}
-                            alt={char.name}
-                            referrerPolicy="no-referrer"
-                            className="h-[92%] w-auto object-contain"
-                          />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="font-display text-lg text-[#f3ebd5] truncate leading-none">
-                            {char.name}
-                          </div>
-                          <div className="font-mono-tech text-[10px] text-red-400 font-bold mt-1">
-                            IA 40 / 40
-                          </div>
-                          <div className="font-mono-tech text-[9px] text-[#9e937c] truncate">
-                            {char.isNight7Boss ? 'Jefe N7' : 'Clásico'}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Definitive Rules Summary */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="border border-red-900/60 bg-black/60 p-3.5 space-y-1">
-                    <div className="font-mono-tech text-[10px] font-bold text-red-300 tracking-wider">
-                      REACCIÓN MÍNIMA (PUERTAS Y PASILLO)
-                    </div>
-                    <p className="text-[11px] text-[#d6ccb4] leading-relaxed">
-                      El tiempo de reacción en puertas laterales, pasillo central y oficina (Charro)
-                      es el más corto de todo el juego.{' '}
-                      <strong className="text-amber-300">Champi y la Ventilación</strong> conservan
-                      un margen ligeramente mayor para poder reaccionar.
-                    </p>
-                  </div>
-                  <div className="border border-amber-700/60 bg-black/60 p-3.5 space-y-1">
-                    <div className="font-mono-tech text-[10px] font-bold text-amber-300 tracking-wider">
-                      PAUSA EN CÁMARAS POR CHAMPI O DUCTOS
-                    </div>
-                    <p className="text-[11px] text-[#d6ccb4] leading-relaxed">
-                      Cada vez que <strong className="text-amber-200">Champi</strong> o{' '}
-                      <strong className="text-amber-200">cualquier enemigo en la Ventilación</strong>{' '}
-                      estén activos, todos los demás enemigos se quedan en las Cámaras hasta que los
-                      evites.
-                    </p>
-                  </div>
-                  <div className="border border-emerald-800/60 bg-black/60 p-3.5 space-y-1">
-                    <div className="font-mono-tech text-[10px] font-bold text-emerald-300 tracking-wider">
-                      ALUCINACIONES CADA 4s (INEVITABLES)
-                    </div>
-                    <p className="text-[11px] text-[#d6ccb4] leading-relaxed">
-                      Cada <strong className="text-amber-200">4 segundos</strong> sufrirás
-                      alucinaciones de los animatrónicos que{' '}
-                      <strong className="text-red-300">bajan el Oxígeno</strong> incluso con
-                      Trucos activos, y desaparecen solas tras{' '}
-                      <strong className="text-amber-200">5 segundos</strong>. Reto fuera de la
-                      campaña.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Normal vs Cheats Choice */}
-                <div className="space-y-2">
-                  <div className="font-display text-2xl text-[#f3ebd5] tracking-wide">
-                    ¿QUIERES JUGAR LA NOCHE DEFINITIVA NORMAL O CON TRUCOS?
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        soundEngine.playClick(860);
-                        launchDefinitiveNight({ ...DEFAULT_CHEATS });
-                      }}
-                      className="text-left p-5 border-2 border-red-600/80 hover:border-amber-300 bg-black/75 space-y-1.5 cursor-pointer transition-colors"
-                    >
-                      <div className="flex items-center gap-2 font-display text-2xl text-amber-300 tracking-wide">
-                        <Play className="w-5 h-5 fill-current" />
-                        <span>JUGAR NORMAL (SIN TRUCOS · 8/40)</span>
-                      </div>
-                      <p className="text-xs text-[#d6ccb4] leading-relaxed">
-                        Afronta la Noche Definitiva pura en dificultad 40 sin ayudas externas.
-                      </p>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        soundEngine.playClick(760);
-                        setDefinitiveCheats({ ...DEFAULT_CHEATS });
-                        setDefinitiveCheatsStep(true);
-                      }}
-                      className="text-left p-5 border-2 border-emerald-700/75 hover:border-emerald-300 bg-black/75 space-y-1.5 cursor-pointer transition-colors"
-                    >
-                      <div className="flex items-center gap-2 font-display text-2xl text-emerald-300 tracking-wide">
-                        <Sparkles className="w-5 h-5" />
-                        <span>JUGAR USANDO LOS TRUCOS</span>
-                      </div>
-                      <p className="text-xs text-[#d6ccb4] leading-relaxed">
-                        Activa Radar, Gemidos de Homero Infinitos (equilibrado), Energía Infinita,
-                        Oxígeno, Puertas o Audio antes de entrar al 8/40.
-                      </p>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
         {tab === 'nights' && (
           <NightSelectorPanel
+            secretUnlocked={secretUnlocked}
             onLaunch={(cfg) => {
               stopCallPlayback();
               soundEngine.stopJumpscare();
@@ -1015,95 +811,103 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
 
         {tab === 'guide' && (
           <div className="max-w-6xl mx-auto space-y-5">
-            <div className="rust-panel-90s border-2 p-5 space-y-4">
+            <div className="rust-panel-90s border-2 p-4 sm:p-5 space-y-4">
               <div>
                 <div className="font-mono-tech text-[10px] tracking-[0.24em] text-amber-400 uppercase">
                   MANUAL TÁCTICO ACTUALIZADO · REGLAS DEL FORO 4 Y NOCHE 7
                 </div>
-                <h3 className="font-display text-3xl text-[#f3ebd5] mt-0.5">
+                <h3 className="font-display text-2xl sm:text-3xl text-[#f3ebd5] mt-0.5">
                   GUÍA COMPLETA DE ATAQUES (IZQUIERDA · DERECHA · CENTRO · VENTILACIÓN)
                 </h3>
                 <p className="text-xs text-[#c7bda4] mt-1">
-                  Reglas actualizadas de rutas de cámaras, audio limitado, recarga eléctrica, turnos
-                  1 a 1 con 5 segundos de reposo y comportamiento exacto de los 8 enemigos.
+                  Reglas actualizadas de rutas de cámaras (12 cámaras con CAM 11/12 de ventilación),
+                  inmunidad al Audio, turnos 1 a 1 en Noche 7 y acceso secreto 1999 (8/40).
                 </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
                 <div className="border border-[#4d3d30] bg-black/65 p-3 space-y-1">
                   <div className="font-mono-tech text-[10px] font-bold text-amber-300 tracking-wider">
-                    ACCESOS CAM 01, CAM 02 Y CAM 09
+                    VENTILACIÓN 11 Y 12 (2 FASES)
                   </div>
                   <p className="text-[11px] text-[#d6ccb4] leading-relaxed">
-                    Solo quienes estén en <strong>CAM 01 o CAM 02</strong> llegan a las puertas, y
-                    solo desde <strong>CAM 02</strong> pasan al Pasillo Central. Los 4 Jefes de
-                    Noche 7 nacen en <strong>CAM 09 (Arcade)</strong>.
+                    Todos los enemigos que usan ductos aparecen en <strong>VENT 11</strong> y{' '}
+                    <strong>VENT 12</strong> (y en el <strong>Radar</strong>) con sonido de
+                    ventilación y Crawl &amp; Rattle al entrar.
                   </p>
                 </div>
 
                 <div className="border border-[#4d3d30] bg-black/65 p-3 space-y-1">
                   <div className="font-mono-tech text-[10px] font-bold text-sky-300 tracking-wider">
-                    AUDIO LIMITADO Y CRUJIDO EN DUCTOS
+                    GEMIDOS DE HOMERO (11 VS 12)
                   </div>
                   <p className="text-[11px] text-[#d6ccb4] leading-relaxed">
-                    El Audio solo funciona en <strong>CAM 03, 05, 06, 08 y 09</strong>. Si tardas en
-                    repeler a un enemigo dentro de la ventilación, sonará un{' '}
-                    <strong>crujido de puerta</strong> justo antes de matarte.
+                    Solo <strong>Ñon</strong> responde a los Gemidos en <strong>VENT 11</strong>;
+                    los demás enemigos son inmunes allí, pero al avanzar a{' '}
+                    <strong>VENT 12</strong> todos son repelidos por el Audio.
                   </p>
                 </div>
 
                 <div className="border border-[#4d3d30] bg-black/65 p-3 space-y-1">
                   <div className="font-mono-tech text-[10px] font-bold text-emerald-300 tracking-wider">
-                    GENERADOR (100%) Y RESPIRACIÓN
+                    PASILLO Y TELETRANSPORTACIÓN
                   </div>
                   <p className="text-[11px] text-[#d6ccb4] leading-relaxed">
-                    Mientras recargas en el Cuarto Trasero hasta el <strong>100%</strong>, todos los
-                    enemigos y sonidos se <strong>desactivan</strong> en cámaras. Al girar entre la
-                    oficina central y las puertas oirás respiración agitada.
+                    Al aparecer enemigos en el Pasillo suena <strong>FNAF 2 Hallway</strong>,
+                    excepto <strong>Árbol</strong> (único que se teletransporta y emite su{' '}
+                    <strong>risa de Nightmare</strong>).
                   </p>
                 </div>
 
                 <div className="border border-red-800/60 bg-[#1a0b09]/85 p-3 space-y-1">
                   <div className="font-mono-tech text-[10px] font-bold text-red-300 tracking-wider">
-                    NOCHE 7 (1 A 1) Y DEFINITIVA 8/40
+                    CÓDIGO 1999 (8/40) Y TRUCO EXCLUSIVO
                   </div>
                   <p className="text-[11px] text-[#dfd5bd] leading-relaxed">
-                    En <strong>Noche 7</strong> los clásicos se apagan y los 4 Jefes van{' '}
-                    <strong>1 a 1 con 5s de reposo</strong>. En <strong>Definitiva 8/40</strong>{' '}
-                    hay alucinaciones cada 4s (bajan Oxígeno y duran 5s) inevitables aun con Trucos.
+                    Pon <strong>1/9/9/9</strong> en los 4 clásicos de Personalized Night. Su truco
+                    exclusivo evita a <strong>Champi</strong> en CAM 01/02; usar trucos fija la
+                    noche en <strong>12 min reales</strong>.
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-5">
-              {ROSTER.map((id) => {
+            <div className="space-y-4 sm:space-y-5">
+              {visibleRoster.map((id) => {
                 const char = TELECHOBIS[id];
                 const guide = ATTACK_METHODS_GUIDE[id];
-                const noVent = id === 'champi' || id === 'charro';
-                const noDoors = id === 'charro';
+                const isBrainrot = Boolean(char.isSecretBrainrot);
+                const noVent = id === 'champi' || id === 'charro' || isBrainrot;
+                const noDoors = id === 'charro' || id === 'non' || isBrainrot;
+                const noCenter = id === 'non';
                 return (
                   <article
                     key={id}
                     className={`relative rust-panel-90s border-2 overflow-hidden grid grid-cols-1 lg:grid-cols-12 ${
-                      char.isNight7Boss ? 'border-red-900/75' : ''
+                      char.isSecretBrainrot
+                        ? 'border-amber-600/75'
+                        : char.isNight7Boss
+                          ? 'border-red-900/75'
+                          : ''
                     }`}
                   >
                     <CobwebCorner position="top-right" className="w-12 h-12 opacity-30" />
                     {/* Left Portrait Stage */}
                     <div
-                      className="lg:col-span-4 relative min-h-[260px] flex flex-col items-center justify-end p-4 border-b lg:border-b-0 lg:border-r border-[#3d3024]"
+                      className="lg:col-span-4 relative min-h-[200px] sm:min-h-[260px] flex flex-col items-center justify-end p-4 border-b lg:border-b-0 lg:border-r border-[#3d3024]"
                       style={{
-                        background: char.isNight7Boss
-                          ? 'radial-gradient(ellipse 75% 75% at 50% 55%, rgba(220,38,38,0.16) 0%, rgba(4,4,5,0.98) 82%)'
-                          : 'radial-gradient(ellipse 75% 75% at 50% 55%, rgba(251,191,36,0.12) 0%, rgba(4,4,5,0.98) 82%)',
+                        background: char.isSecretBrainrot
+                          ? 'radial-gradient(ellipse 75% 75% at 50% 55%, rgba(251,191,36,0.18) 0%, rgba(4,4,5,0.98) 82%)'
+                          : char.isNight7Boss
+                            ? 'radial-gradient(ellipse 75% 75% at 50% 55%, rgba(220,38,38,0.16) 0%, rgba(4,4,5,0.98) 82%)'
+                            : 'radial-gradient(ellipse 75% 75% at 50% 55%, rgba(251,191,36,0.12) 0%, rgba(4,4,5,0.98) 82%)',
                       }}
                     >
                       <img
                         src={char.spritePath}
                         alt={char.name}
                         referrerPolicy="no-referrer"
-                        className="max-h-[225px] w-auto object-contain drop-shadow-[0_14px_24px_rgba(0,0,0,0.98)]"
+                        className="max-h-[180px] sm:max-h-[225px] w-auto object-contain drop-shadow-[0_14px_24px_rgba(0,0,0,0.98)]"
                       />
                       <div className="mt-2 text-center">
                         <div className="inline-flex items-center gap-2">
@@ -1115,13 +919,18 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
                               NOCHE 7
                             </span>
                           )}
+                          {char.isSecretBrainrot && (
+                            <span className="px-1.5 py-0.5 bg-amber-950/90 border border-amber-500/70 font-mono-tech text-[9px] text-amber-200">
+                              SECRETA
+                            </span>
+                          )}
                         </div>
                         <p className="font-mono-tech text-[10px] text-amber-300 mt-1">{char.role}</p>
                       </div>
                     </div>
 
                     {/* Right 4 Attack Modes Explanation */}
-                    <div className="lg:col-span-8 p-5 space-y-3 bg-[#0d0b09]">
+                    <div className="lg:col-span-8 p-4 sm:p-5 space-y-3 bg-[#0d0b09]">
                       <p className="text-xs font-mono-tech text-[#d8ceb5] border-b border-[#32271e] pb-2">
                         {guide.trait}
                       </p>
@@ -1129,39 +938,51 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div
                           className={`border p-3 space-y-1 ${
-                            noDoors
+                            noDoors && !isBrainrot
                               ? 'border-zinc-800 bg-black/35 opacity-75'
                               : 'border-[#4d3d30] bg-black/65'
                           }`}
                         >
                           <div className="font-mono-tech text-[10px] font-bold text-sky-300 tracking-wider">
-                            1. PUERTA IZQUIERDA [A + Q]
+                            {isBrainrot ? '1. UBICACIÓN EN LA HABITACIÓN' : '1. PUERTA IZQUIERDA [A + Q]'}
                           </div>
                           <p className="text-xs text-[#cfc5ab] leading-relaxed">{guide.leftDoor}</p>
                         </div>
 
                         <div
                           className={`border p-3 space-y-1 ${
-                            noDoors
+                            noDoors && !isBrainrot
                               ? 'border-zinc-800 bg-black/35 opacity-75'
                               : 'border-[#4d3d30] bg-black/65'
                           }`}
                         >
                           <div className="font-mono-tech text-[10px] font-bold text-emerald-300 tracking-wider">
-                            2. PUERTA DERECHA [D + E]
+                            {isBrainrot ? '2. AUDIO Y TURNO EXCLUSIVO' : '2. PUERTA DERECHA [D + E]'}
                           </div>
                           <p className="text-xs text-[#cfc5ab] leading-relaxed">{guide.rightDoor}</p>
                         </div>
 
-                        <div className="border border-[#4d3d30] bg-black/65 p-3 space-y-1">
+                        <div
+                          className={`border p-3 space-y-1 ${
+                            noCenter
+                              ? 'border-zinc-800 bg-black/35 opacity-75'
+                              : 'border-[#4d3d30] bg-black/65'
+                          }`}
+                        >
                           <div className="font-mono-tech text-[10px] font-bold text-amber-300 tracking-wider">
-                            {id === 'charro'
-                              ? '3. OFICINA CENTRAL [MÁSCARA M / CÁMARAS W]'
-                              : id === 'champi'
-                                ? '3. PASILLO CENTRAL · BÚSQUEDA EN CCTV [W]'
-                                : id === 'arbol' || id === 'non'
-                                  ? '3. EN FRENTE / PASILLO [ESPACIO + M]'
-                                  : '3. CENTRO / PASILLO [ESPACIO + M]'}
+                            {id === 'glamrock'
+                              ? '3. DEFENSA: FARMEANDING AURA'
+                              : id === 'tralalero'
+                                ? '3. DEFENSA: CURRÍCULUM VITAE'
+                                : id === 'charro'
+                                  ? '3. OFICINA CENTRAL [MÁSCARA M / CÁMARAS W]'
+                                  : id === 'champi'
+                                    ? '3. PASILLO CENTRAL · BÚSQUEDA EN CCTV [W]'
+                                    : id === 'non'
+                                      ? '3. PASILLO CENTRAL (INACTIVO)'
+                                      : id === 'arbol'
+                                        ? '3. EN FRENTE / PASILLO [ESPACIO + M]'
+                                        : '3. CENTRO / PASILLO [ESPACIO + M]'}
                           </div>
                           <p className="text-xs text-[#cfc5ab] leading-relaxed">{guide.centerHall}</p>
                         </div>
@@ -1174,7 +995,7 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
                           }`}
                         >
                           <div className="font-mono-tech text-[10px] font-bold text-rose-300 tracking-wider">
-                            4. VENTILACIÓN [W + AUDIO CCTV]
+                            {isBrainrot ? '4. CÁMARAS / VENTILACIÓN' : '4. VENTILACIÓN [W + AUDIO CCTV]'}
                           </div>
                           <p className="text-xs text-[#cfc5ab] leading-relaxed">{guide.vent}</p>
                         </div>
@@ -1189,12 +1010,12 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
 
         {tab === 'calls' && (
           <div className="max-w-5xl mx-auto space-y-5">
-            <div className="rust-panel-90s border-2 p-5 flex flex-wrap items-center justify-between gap-3">
+            <div className="rust-panel-90s border-2 p-4 sm:p-5 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div className="font-mono-tech text-[10px] tracking-[0.24em] text-amber-400 uppercase">
                   CINTAS DE AUDIO TELEFÓNICO · NOCHES 1 A 5 Y NOCHE 7
                 </div>
-                <h3 className="font-display text-3xl text-[#f3ebd5] mt-0.5">
+                <h3 className="font-display text-2xl sm:text-3xl text-[#f3ebd5] mt-0.5">
                   ARCHIVO DE LLAMADAS (ALEJANDRO ROMERO Y RICARDO SALINAS PLIEGO)
                 </h3>
                 <p className="text-xs text-[#c7bda4] mt-1">
@@ -1212,7 +1033,7 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
                       stopCallPlayback();
                       setSelectedCallNight(n);
                     }}
-                    className={`px-3.5 py-2 border font-mono-tech text-xs font-bold cursor-pointer ${
+                    className={`min-h-[40px] px-3.5 py-2 border font-mono-tech text-xs font-bold cursor-pointer ${
                       selectedCallNight === n
                         ? 'bg-amber-400 text-black border-amber-200'
                         : n === 7
@@ -1227,7 +1048,7 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
             </div>
 
             {PHONE_CALLS[selectedCallNight] && (
-              <div className="rust-panel-90s border-2 p-5 sm:p-6 space-y-4">
+              <div className="rust-panel-90s border-2 p-4 sm:p-6 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#4d3d30] pb-3">
                   <div>
                     <div className="font-mono-tech text-xs font-bold text-amber-300">
@@ -1246,7 +1067,7 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
                         soundEngine.playClick(540);
                         stopCallPlayback();
                       }}
-                      className="px-4 py-2 bg-red-950 border border-red-400 text-red-100 hover:bg-red-900 font-mono-tech text-xs font-bold inline-flex items-center gap-2 cursor-pointer"
+                      className="min-h-[44px] w-full sm:w-auto justify-center px-4 py-2 bg-red-950 border border-red-400 text-red-100 hover:bg-red-900 font-mono-tech text-xs font-bold inline-flex items-center gap-2 cursor-pointer"
                     >
                       <Square className="w-3.5 h-3.5 fill-current" />
                       <span>Detener Llamada</span>
@@ -1258,7 +1079,7 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
                         soundEngine.playClick(720);
                         handlePlayCallAudio(selectedCallNight, 0);
                       }}
-                      className="px-4 py-2 bg-[#c9bfa4] text-black hover:bg-amber-300 border border-[#5e533e] font-mono-tech text-xs font-bold inline-flex items-center gap-2 cursor-pointer"
+                      className="min-h-[44px] w-full sm:w-auto justify-center px-4 py-2 bg-[#c9bfa4] text-black hover:bg-amber-300 border border-[#5e533e] font-mono-tech text-xs font-bold inline-flex items-center gap-2 cursor-pointer"
                     >
                       <Volume2 className="w-4 h-4" />
                       <span>Reproducir Llamada Noche {selectedCallNight}</span>
@@ -1318,13 +1139,17 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
 
         {tab === 'jumpscares' && (
           <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {ROSTER.map((id) => {
+            {visibleRoster.map((id) => {
               const char = TELECHOBIS[id];
               return (
                 <div
                   key={id}
                   className={`relative rust-panel-90s border-2 p-4 flex flex-col justify-between gap-4 overflow-hidden ${
-                    char.isNight7Boss ? 'border-red-900/70' : ''
+                    char.isSecretBrainrot
+                      ? 'border-amber-600/70'
+                      : char.isNight7Boss
+                        ? 'border-red-900/70'
+                        : ''
                   }`}
                 >
                   <CobwebCorner position="top-right" className="w-12 h-12 opacity-35" />
@@ -1347,13 +1172,18 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
                           NOCHE 7
                         </span>
                       )}
+                      {char.isSecretBrainrot && (
+                        <span className="px-1.5 py-0.5 bg-amber-950/90 border border-amber-500/70 font-mono-tech text-[9px] text-amber-200">
+                          SECRETA
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-[#b7ad96] mt-1 leading-relaxed">
                       {char.behaviorNote}
                     </p>
                   </div>
                   <div className="space-y-2">
-                    {id === 'charro' ? (
+                    {id === 'charro' || id === 'glamrock' || id === 'tralalero' ? (
                       <button
                         type="button"
                         onClick={() => triggerJumpscarePreview(id, 'office')}
@@ -1361,6 +1191,15 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
                       >
                         <Play className="w-3.5 h-3.5" />
                         Jumpscare Oficina (Único)
+                      </button>
+                    ) : id === 'non' ? (
+                      <button
+                        type="button"
+                        onClick={() => triggerJumpscarePreview(id, 'vent')}
+                        className="w-full py-2 px-3 bg-[#19221d] border border-emerald-500/80 text-emerald-100 hover:bg-emerald-950 font-mono-tech text-[11px] font-bold flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <Play className="w-3.5 h-3.5" />
+                        Jumpscare Ventilación (Único)
                       </button>
                     ) : (
                       <>
@@ -1386,7 +1225,7 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
                           className="w-full py-2 px-3 bg-[#2a190d] border border-amber-600/70 text-amber-100 hover:bg-amber-900 font-mono-tech text-[11px] font-bold flex items-center justify-center gap-2 cursor-pointer"
                         >
                           <Play className="w-3.5 h-3.5" />
-                          {id === 'arbol' || id === 'non'
+                          {id === 'arbol'
                             ? 'Jumpscare En Frente'
                             : 'Jumpscare Pasillo Central'}
                         </button>
@@ -1569,13 +1408,13 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
       {zoomedImage && (
         <div
           onClick={() => setZoomedImage(null)}
-          className="fixed inset-0 z-50 bg-black/92 backdrop-blur-sm flex flex-col items-center justify-center p-4 sm:p-8 cursor-pointer"
+          className="fixed inset-0 h-dvh z-50 bg-black/92 backdrop-blur-sm flex flex-col items-center justify-center p-3 sm:p-8 cursor-pointer"
         >
           <button
             type="button"
             onClick={() => setZoomedImage(null)}
             aria-label="Cerrar vista ampliada"
-            className="absolute top-4 right-4 p-2 bg-[#1c1915] border border-[#5c4838] text-[#dfd5bd] hover:text-white cursor-pointer"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center absolute top-3 right-3 sm:top-4 sm:right-4 p-2 bg-[#1c1915] border border-[#5c4838] text-[#dfd5bd] hover:text-white cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -1584,9 +1423,9 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
             alt={zoomedImage.caption}
             referrerPolicy="no-referrer"
             onClick={(e) => e.stopPropagation()}
-            className="max-h-[82vh] max-w-[94vw] object-contain border border-[#5c4838] shadow-[0_24px_80px_rgba(0,0,0,0.98)] cursor-default"
+            className="max-h-[78dvh] max-w-[94vw] object-contain border border-[#5c4838] shadow-[0_24px_80px_rgba(0,0,0,0.98)] cursor-default"
           />
-          <p className="mt-3 text-center font-mono-tech text-xs text-amber-200 max-w-2xl">
+          <p className="mt-3 text-center font-mono-tech text-[11px] sm:text-xs text-amber-200 max-w-2xl px-2">
             {zoomedImage.caption}
           </p>
         </div>
@@ -1603,11 +1442,11 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
             soundEngine.stopJumpscare();
             setPreviewJumpscare(null);
           }}
-          className="fixed inset-0 z-50 bg-black flex items-center justify-center overflow-hidden cursor-pointer"
+          className="fixed inset-0 h-dvh z-50 bg-black flex items-center justify-center overflow-hidden cursor-pointer"
         >
           {previewJumpscare.source === 'vent' && (
             <div className="pointer-events-none fixed top-0 inset-x-0 flex justify-center z-20">
-              <div className="relative w-[270px] sm:w-[340px] -mt-12 sm:-mt-16 flex justify-center">
+              <div className="relative w-[210px] sm:w-[340px] -mt-10 sm:-mt-16 flex justify-center">
                 <div
                   className="pointer-events-none absolute inset-4"
                   style={{
@@ -1634,7 +1473,7 @@ export function ExtrasModal({ onBack, onLaunchConfig }: ExtrasModalProps) {
               id={previewJumpscare.id}
               variant="jumpscare"
               jumpscareSource={previewJumpscare.source}
-              className="h-[108vh] w-auto"
+              className="h-[92dvh] sm:h-[108dvh] w-auto"
             />
           </div>
           <div className="pointer-events-none absolute inset-0 crt-scanlines opacity-50" />

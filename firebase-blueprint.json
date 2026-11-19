@@ -38,6 +38,10 @@
           "type": "boolean",
           "description": "Whether Extras and Night Selector are unlocked (earned via Night 7 or preserved from earlier v1 Night 6 completion)."
         },
+        "secretNight2Completed": {
+          "type": "boolean",
+          "description": "Whether the player completed Secret Brainrot Night (1999 Night 7 bosses) to unlock Glamrock Aura and Tralalero Faz-Shark."
+        },
         "totalDeaths": {
           "type": "integer",
           "description": "Cumulative deaths across sessions."

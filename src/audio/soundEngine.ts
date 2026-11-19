@@ -5,6 +5,7 @@
 import { JumpscareSource, TelechobiId } from '../types/game';
 
 const AUDIO_ASSETS = {
+  menuMusic: '/assets/aistudio/Five_Nights_at_Candy_s_OST_-_Menu_Theme_c4af9ca9.mp3',
   nightMusic: '/assets/aistudio/Ennard_BOSS_FIGHT_Music__EXTENDED__2274153f.mp3',
   ventSfx: '/assets/aistudio/FNAF_Vents__FNAF_3__-_Gaming_Sound_Effect__HD__a4bf03b2.mp3',
   ventCreak:
@@ -19,11 +20,17 @@ const AUDIO_ASSETS = {
   nonCrawl: '/assets/aistudio/Crawl_and_Rattle_-_Sound_Effect_for_editing_30237bd4.mp3',
   nonLaugh: '/assets/aistudio/Creepy_Laugh_Sound_Effect__SOUNDFX_12d99a84.mp3',
   champiTires: '/assets/aistudio/Car_Tires_screech_Sound_Effect_c3038a59.mp3',
+  champiGears: '/assets/aistudio/Gears_1_sound_effects_05258121.mp3',
   foxyRun: '/assets/aistudio/FNAF_PLUS_FOXY_RUNN_NG__cut_1sec__a8e8f399.mp3',
   camInterference: '/assets/aistudio/efecto_de_sonido_interferencia_5f3b709a.mp3',
   charroVoice:
     '/assets/aistudio/devolver_el_alma_de_beatriz_pues_eso_ya_no_se_puede_ya_me_la_lleve_e59ff31a.mp3',
   glassBreak: '/assets/aistudio/Glass_Breaking_Sound_Effect_HD_Glass_Shattering_Sound_Effect_33b66029.mp3',
+  glamrockDuel: '/assets/aistudio/ES_HORA_DE_DE_DE_DE_DE_DEL_DUELO__611c7cdb.mp3',
+  auraFarmerSong: '/assets/aistudio/The_Aura_Farmer_-_Horror_Skunx__official_song__1825a188.mp3',
+  tralaleroSong: '/assets/aistudio/TRALALERO_TRALALA____CANCION_MEME_OFICIAL____SIMBA_f421cc2d.mp3',
+  paperMove:
+    '/assets/aistudio/Sonido_de_Mover_Papel_Moviendo_Hoja_de_papel_-_Efecto_de_Sonido_9b753821.mp3',
   jumpscare: {
     ton: '/assets/aistudio/Fnaf_Jumpscare_Sound_Effect_6fe3c116.mp3',
     toso: '/assets/aistudio/FNAF_2_Jumpscare_Sound_f38574a3.mp3',
@@ -33,6 +40,8 @@ const AUDIO_ASSETS = {
     champi: '/assets/aistudio/FNAF_3_Jumpscare_Sound_Effect_9574fe64.mp3',
     non: '/assets/aistudio/FNAF_2_Jumpscare_Sound_f38574a3.mp3',
     charro: '/assets/aistudio/Fnaf_Jumpscare_Sound_Effect_6fe3c116.mp3',
+    glamrock: '/assets/aistudio/FNAF_4_Jumpscare_Sound_Effect_74546419.mp3',
+    tralalero: '/assets/aistudio/FNAF_2_Jumpscare_Sound_f38574a3.mp3',
   } as Record<TelechobiId, string>,
 } as const;
 
@@ -47,12 +56,11 @@ const PRELOAD_SFX_URLS: string[] = [
   AUDIO_ASSETS.generatorLoop,
   AUDIO_ASSETS.arbolLaugh,
   AUDIO_ASSETS.nonCrawl,
-  AUDIO_ASSETS.nonLaugh,
-  AUDIO_ASSETS.champiTires,
+  AUDIO_ASSETS.champiGears,
   AUDIO_ASSETS.foxyRun,
-  AUDIO_ASSETS.camInterference,
   AUDIO_ASSETS.charroVoice,
-  AUDIO_ASSETS.glassBreak,
+  AUDIO_ASSETS.glamrockDuel,
+  AUDIO_ASSETS.paperMove,
   AUDIO_ASSETS.jumpscare.ton,
   AUDIO_ASSETS.jumpscare.toso,
   AUDIO_ASSETS.jumpscare.nita,
@@ -60,6 +68,7 @@ const PRELOAD_SFX_URLS: string[] = [
 ];
 
 const ASSET_FALLBACK_OFFSET_SEC: Record<string, number> = {
+  [AUDIO_ASSETS.menuMusic]: 0,
   [AUDIO_ASSETS.ventSfx]: 0.24,
   [AUDIO_ASSETS.ventCreak]: 0.245,
   [AUDIO_ASSETS.cameraLure]: 0.528,
@@ -72,9 +81,10 @@ const ASSET_FALLBACK_OFFSET_SEC: Record<string, number> = {
   [AUDIO_ASSETS.nonCrawl]: 0.05,
   [AUDIO_ASSETS.nonLaugh]: 0.05,
   [AUDIO_ASSETS.champiTires]: 0.05,
+  [AUDIO_ASSETS.champiGears]: 0.02,
   [AUDIO_ASSETS.foxyRun]: 0.02,
   [AUDIO_ASSETS.camInterference]: 0.04,
-  [AUDIO_ASSETS.charroVoice]: 0.04,
+  [AUDIO_ASSETS.charroVoice]: 0,
   [AUDIO_ASSETS.glassBreak]: 0.04,
   [AUDIO_ASSETS.jumpscare.ton]: 0.22,
   [AUDIO_ASSETS.jumpscare.toso]: 0.335,
@@ -110,6 +120,7 @@ class SoundEngine {
   private sfxRawFetching = new Map<string, Promise<ArrayBuffer | null>>();
   private sfxBuffers = new Map<string, AudioBuffer>();
   private sfxLoading = new Map<string, Promise<AudioBuffer | null>>();
+  private failedSfxUrls = new Set<string>();
 
   private activeJumpscareSource: AudioBufferSourceNode | null = null;
   private activeJumpscareAudio: HTMLAudioElement | null = null;
@@ -147,14 +158,20 @@ class SoundEngine {
 
   private activeCharroSource: AudioBufferSourceNode | null = null;
   private activeCharroAudio: HTMLAudioElement | null = null;
+  private activeCharroSynthStop: (() => void) | null = null;
+  private activeCharroUtterance: SpeechSynthesisUtterance | null = null;
   private charroToken = 0;
+  private charroDuckedMusic = false;
 
   private activeInterferenceSource: AudioBufferSourceNode | null = null;
   private activeInterferenceAudio: HTMLAudioElement | null = null;
+  private activeInterferenceSynthStop: (() => void) | null = null;
   private interferenceToken = 0;
 
   private activeNonCrawlSource: AudioBufferSourceNode | null = null;
   private activeNonCrawlAudio: HTMLAudioElement | null = null;
+  private activeNonCrawlSynthStop: (() => void) | null = null;
+  private nonCrawlToken = 0;
 
   private activeFoxyRunSource: AudioBufferSourceNode | null = null;
   private activeFoxyRunAudio: HTMLAudioElement | null = null;
@@ -171,11 +188,31 @@ class SoundEngine {
   private heavyBreathingAudio: HTMLAudioElement | null = null;
   private gestureUnlockBound = false;
 
+  // Main Menu OST (Five Nights at Candy's OST - Menu Theme)
+  private menuMusicAudio: HTMLAudioElement | null = null;
+  private menuMusicShouldPlay = false;
+  private menuMusicRetryBound = false;
+
   // Night-only Ennard Boss Fight Music
   private nightMusicAudio: HTMLAudioElement | null = null;
   private nightMusicShouldPlay = false;
   private nightMusicRetryBound = false;
   private rechargingSilence = false;
+
+  // Secret Brainrot Animatronics Audio Handles
+  private activeGlamrockDuelSource: AudioBufferSourceNode | null = null;
+  private activeGlamrockDuelAudio: HTMLAudioElement | null = null;
+  private glamrockDuelToken = 0;
+
+  private auraBattleAudio: HTMLAudioElement | null = null;
+  private auraBattleToken = 0;
+
+  private tralaleroAudio: HTMLAudioElement | null = null;
+  private tralaleroToken = 0;
+
+  private activePaperSource: AudioBufferSourceNode | null = null;
+  private activePaperAudio: HTMLAudioElement | null = null;
+  private paperToken = 0;
 
   // Night 7 Ending Fire & Soul Release audio
   private endingFireNodes: AudioNode[] = [];
@@ -293,6 +330,18 @@ class SoundEngine {
         0.05
       );
     }
+    if (this.menuMusicAudio) {
+      this.menuMusicAudio.muted = muted;
+      if (!muted && this.menuMusicShouldPlay && this.menuMusicAudio.paused) {
+        void this.menuMusicAudio.play().catch(() => {});
+      } else if (muted && !this.menuMusicAudio.paused) {
+        try {
+          this.menuMusicAudio.pause();
+        } catch {
+          // ignore pause errors
+        }
+      }
+    }
     if (this.nightMusicAudio) {
       this.nightMusicAudio.muted = muted;
       if (!muted && !this.rechargingSilence && this.nightMusicShouldPlay && this.nightMusicAudio.paused) {
@@ -322,6 +371,10 @@ class SoundEngine {
       this.stopCamInterference();
       this.stopNonCrawl();
       this.stopChampiFoxyRun();
+      this.stopGlamrockDuel();
+      this.stopAuraBattleSong();
+      this.stopTralaleroSong();
+      this.stopPaperMove();
     }
   }
 
@@ -330,6 +383,7 @@ class SoundEngine {
   }
 
   private fetchRawSfxBytes(url: string): Promise<ArrayBuffer | null> {
+    if (this.failedSfxUrls.has(url)) return Promise.resolve(null);
     const existing = this.sfxRawBytes.get(url);
     if (existing) return Promise.resolve(existing);
     const inflight = this.sfxRawFetching.get(url);
@@ -337,14 +391,20 @@ class SoundEngine {
 
     const promise = fetch(url)
       .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+          this.failedSfxUrls.add(url);
+          throw new Error(`HTTP ${res.status}`);
+        }
         return res.arrayBuffer();
       })
       .then((arr) => {
         this.sfxRawBytes.set(url, arr);
         return arr;
       })
-      .catch(() => null)
+      .catch(() => {
+        this.failedSfxUrls.add(url);
+        return null;
+      })
       .finally(() => {
         this.sfxRawFetching.delete(url);
       });
@@ -450,9 +510,14 @@ class SoundEngine {
       })
       .then((decoded) => {
         if (!decoded) return null;
-        const trimmed = this.trimSilenceFromBuffer(ctx, decoded);
-        this.sfxBuffers.set(url, trimmed);
-        return trimmed;
+        const skipTrim =
+          url === AUDIO_ASSETS.charroVoice ||
+          url === AUDIO_ASSETS.cameraLure ||
+          url === AUDIO_ASSETS.ventSfx ||
+          url === AUDIO_ASSETS.nonCrawl;
+        const processed = skipTrim ? decoded : this.trimSilenceFromBuffer(ctx, decoded);
+        this.sfxBuffers.set(url, processed);
+        return processed;
       })
       .catch(() => null)
       .finally(() => {
@@ -478,6 +543,78 @@ class SoundEngine {
         window.speechSynthesis.getVoices();
       } catch {
         // ignore speech synthesis probe errors
+      }
+    }
+  }
+
+  private ensureMenuMusicElement(): HTMLAudioElement | null {
+    if (typeof window === 'undefined') return null;
+    if (!this.menuMusicAudio) {
+      const audio = new Audio(AUDIO_ASSETS.menuMusic);
+      audio.loop = true;
+      audio.preload = 'auto';
+      this.menuMusicAudio = audio;
+    }
+    return this.menuMusicAudio;
+  }
+
+  private retryMenuMusicOnGesture = () => {
+    this.unbindMenuMusicRetry();
+    if (!this.menuMusicShouldPlay || this.muted) return;
+    const audio = this.ensureMenuMusicElement();
+    if (audio && audio.paused) {
+      void audio.play().catch(() => {});
+    }
+  };
+
+  private bindMenuMusicRetry() {
+    if (this.menuMusicRetryBound || typeof window === 'undefined') return;
+    this.menuMusicRetryBound = true;
+    window.addEventListener('pointerdown', this.retryMenuMusicOnGesture, { once: true });
+    window.addEventListener('keydown', this.retryMenuMusicOnGesture, { once: true });
+  }
+
+  private unbindMenuMusicRetry() {
+    if (!this.menuMusicRetryBound || typeof window === 'undefined') return;
+    this.menuMusicRetryBound = false;
+    window.removeEventListener('pointerdown', this.retryMenuMusicOnGesture);
+    window.removeEventListener('keydown', this.retryMenuMusicOnGesture);
+  }
+
+  public startMenuMusic() {
+    this.menuMusicShouldPlay = true;
+    const audio = this.ensureMenuMusicElement();
+    if (!audio) return;
+
+    audio.loop = true;
+    audio.muted = this.muted;
+    audio.volume = 0.38;
+    if (this.muted) return;
+
+    if (!audio.paused) return;
+    try {
+      audio.currentTime = 0;
+    } catch {
+      // ignore seek if stream not ready
+    }
+
+    const playPromise = audio.play();
+    if (playPromise) {
+      playPromise.catch(() => {
+        this.bindMenuMusicRetry();
+      });
+    }
+  }
+
+  public stopMenuMusic() {
+    this.menuMusicShouldPlay = false;
+    this.unbindMenuMusicRetry();
+    if (this.menuMusicAudio) {
+      try {
+        this.menuMusicAudio.pause();
+        this.menuMusicAudio.currentTime = 0;
+      } catch {
+        // ignore audio teardown errors
       }
     }
   }
@@ -517,6 +654,7 @@ class SoundEngine {
   }
 
   public startNightMusic(ducked = false) {
+    this.stopMenuMusic();
     this.nightMusicShouldPlay = true;
     this.preloadNightSfx();
 
@@ -603,6 +741,10 @@ class SoundEngine {
     this.stopNonCrawl();
     this.stopChampiFoxyRun();
     this.stopMaskBreathing();
+    this.stopGlamrockDuel();
+    this.stopAuraBattleSong();
+    this.stopTralaleroSong();
+    this.stopPaperMove();
     if (this.nightMusicAudio) {
       try {
         this.nightMusicAudio.pause();
@@ -642,7 +784,7 @@ class SoundEngine {
     this.stopVentSound();
     if (this.muted || this.rechargingSilence) return;
 
-    const volume = mode === 'alert' ? 0.86 : 0.24;
+    const volume = mode === 'alert' ? 0.95 : 0.28;
 
     const trigger = () => {
       this.ventDelayTimer = null;
@@ -671,13 +813,40 @@ class SoundEngine {
         const audio = new Audio(AUDIO_ASSETS.ventSfx);
         audio.volume = volume;
         audio.muted = this.muted;
+        try {
+          audio.currentTime = ASSET_FALLBACK_OFFSET_SEC[AUDIO_ASSETS.ventSfx] ?? 0;
+        } catch {
+          // ignore seek before ready
+        }
         audio.onended = () => {
           if (this.activeVentAudio === audio) {
             this.activeVentAudio = null;
           }
         };
         this.activeVentAudio = audio;
-        void audio.play().catch(() => {});
+        void audio.play().catch(() => {
+          // Synthesize metallic vent clank fallback only if HTMLAudio playback fails
+          if (ctx && bus && this.noiseBuffer && !this.muted) {
+            const now = ctx.currentTime;
+            [0, 0.16, 0.34].forEach((offset) => {
+              const t = now + offset;
+              const noise = ctx.createBufferSource();
+              noise.buffer = this.noiseBuffer!;
+              const bp = ctx.createBiquadFilter();
+              bp.type = 'bandpass';
+              bp.frequency.value = 540;
+              bp.Q.value = 2.4;
+              const ng = ctx.createGain();
+              ng.gain.setValueAtTime(volume * 0.25, t);
+              ng.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+              noise.connect(bp);
+              bp.connect(ng);
+              ng.connect(bus);
+              noise.start(t);
+              noise.stop(t + 0.15);
+            });
+          }
+        });
       }
     };
 
@@ -1023,14 +1192,9 @@ class SoundEngine {
       }
     }, mode === 'menu' ? 3500 : 4100);
 
-    // Haunted VHS Nocturne Music Box in Main Menu
-    if (mode === 'menu') {
-      let step = 0;
-      this.playMenuNocturneNote(ctx, step++);
-      this.menuMusicInterval = window.setInterval(() => {
-        if (!this.ctx || this.muted) return;
-        this.playMenuNocturneNote(this.ctx, step++);
-      }, 1750);
+    // Main Menu uses "Five Nights at Candy's OST - Menu Theme" via startMenuMusic()
+    if (mode === 'menu' && !this.menuMusicShouldPlay) {
+      this.startMenuMusic();
     }
   }
 
@@ -2215,6 +2379,184 @@ class SoundEngine {
     return performance.now() < this.bossAudioEndsAt;
   }
 
+  private synthArbolLaugh(volume = 0.74, echo = true) {
+    const ctx = this.ensureContext();
+    const bus = echo ? this.getEchoBus() : this.getDryBus();
+    if (!ctx || !bus) return;
+    const now = ctx.currentTime;
+    const pulses = [0, 0.24, 0.49, 0.75, 1.05];
+    pulses.forEach((offset, idx) => {
+      const t = now + offset;
+      const osc = ctx.createOscillator();
+      const sub = ctx.createOscillator();
+      const filter = ctx.createBiquadFilter();
+      const g = ctx.createGain();
+      osc.type = 'sawtooth';
+      sub.type = 'triangle';
+      const baseF = 118 - idx * 8;
+      osc.frequency.setValueAtTime(baseF, t);
+      osc.frequency.exponentialRampToValueAtTime(Math.max(44, baseF * 0.62), t + 0.21);
+      sub.frequency.setValueAtTime(baseF * 0.5, t);
+      sub.frequency.exponentialRampToValueAtTime(Math.max(28, baseF * 0.34), t + 0.21);
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(420, t);
+      filter.Q.value = 3.2;
+      const amp = Math.min(0.45, volume * 0.42);
+      g.gain.setValueAtTime(0.001, t);
+      g.gain.linearRampToValueAtTime(amp, t + 0.025);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      osc.connect(filter);
+      sub.connect(filter);
+      filter.connect(g);
+      g.connect(bus);
+      osc.start(t);
+      sub.start(t);
+      osc.stop(t + 0.24);
+      sub.stop(t + 0.24);
+    });
+  }
+
+  private synthNonLaugh(volume = 0.76, echo = true) {
+    const ctx = this.ensureContext();
+    const bus = echo ? this.getEchoBus() : this.getDryBus();
+    if (!ctx || !bus) return;
+    const now = ctx.currentTime;
+    const bursts = [0, 0.14, 0.28, 0.43, 0.61];
+    bursts.forEach((offset, idx) => {
+      const t = now + offset;
+      const osc = ctx.createOscillator();
+      const mod = ctx.createOscillator();
+      const modGain = ctx.createGain();
+      const bp = ctx.createBiquadFilter();
+      const g = ctx.createGain();
+      osc.type = 'square';
+      const f = 310 - idx * 24;
+      osc.frequency.setValueAtTime(f, t);
+      osc.frequency.exponentialRampToValueAtTime(Math.max(120, f * 0.68), t + 0.12);
+      mod.type = 'sine';
+      mod.frequency.value = 34;
+      modGain.gain.value = 48;
+      mod.connect(modGain);
+      modGain.connect(osc.frequency);
+      bp.type = 'bandpass';
+      bp.frequency.value = 920;
+      bp.Q.value = 1.8;
+      const amp = Math.min(0.32, volume * 0.3);
+      g.gain.setValueAtTime(0.001, t);
+      g.gain.linearRampToValueAtTime(amp, t + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.13);
+      osc.connect(bp);
+      bp.connect(g);
+      g.connect(bus);
+      osc.start(t);
+      mod.start(t);
+      osc.stop(t + 0.14);
+      mod.stop(t + 0.14);
+    });
+  }
+
+  private synthChampiTires(volume = 0.66) {
+    const ctx = this.ensureContext();
+    const dry = this.getDryBus();
+    if (!ctx || !dry) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const bp = ctx.createBiquadFilter();
+    const g = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(1680, now);
+    osc.frequency.exponentialRampToValueAtTime(840, now + 0.82);
+    bp.type = 'bandpass';
+    bp.frequency.setValueAtTime(1450, now);
+    bp.Q.value = 4.5;
+    const amp = Math.min(0.28, volume * 0.28);
+    g.gain.setValueAtTime(0.001, now);
+    g.gain.linearRampToValueAtTime(amp, now + 0.04);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.85);
+    osc.connect(bp);
+    bp.connect(g);
+    g.connect(dry);
+    osc.start(now);
+    osc.stop(now + 0.88);
+    if (this.noiseBuffer) {
+      const n = ctx.createBufferSource();
+      n.buffer = this.noiseBuffer;
+      const nBp = ctx.createBiquadFilter();
+      nBp.type = 'bandpass';
+      nBp.frequency.value = 2100;
+      nBp.Q.value = 2.4;
+      const ng = ctx.createGain();
+      ng.gain.setValueAtTime(amp * 0.7, now);
+      ng.gain.exponentialRampToValueAtTime(0.001, now + 0.82);
+      n.connect(nBp);
+      nBp.connect(ng);
+      ng.connect(dry);
+      n.start(now);
+      n.stop(now + 0.85);
+    }
+  }
+
+  private synthGlassBreak(volume = 0.84) {
+    const ctx = this.ensureContext();
+    const dry = this.getDryBus();
+    if (!ctx || !dry) return;
+    const now = ctx.currentTime;
+    if (this.noiseBuffer) {
+      const n = ctx.createBufferSource();
+      n.buffer = this.noiseBuffer;
+      const hp = ctx.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 1650;
+      const ng = ctx.createGain();
+      ng.gain.setValueAtTime(Math.min(0.55, volume * 0.56), now);
+      ng.gain.exponentialRampToValueAtTime(0.001, now + 0.52);
+      n.connect(hp);
+      hp.connect(ng);
+      ng.connect(dry);
+      n.start(now);
+      n.stop(now + 0.55);
+    }
+    const shardFreqs = [2850, 4120, 3490, 5260, 2380, 3920];
+    shardFreqs.forEach((f, idx) => {
+      const t = now + idx * 0.038;
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(f, t);
+      osc.frequency.exponentialRampToValueAtTime(f * 0.72, t + 0.16);
+      g.gain.setValueAtTime(Math.min(0.28, volume * 0.3), t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+      osc.connect(g);
+      g.connect(dry);
+      osc.start(t);
+      osc.stop(t + 0.2);
+    });
+  }
+
+  private playSynthFallbackByUrl(
+    url: string,
+    volume: number,
+    options?: { echo?: boolean; maxDurationMs?: number }
+  ): boolean {
+    if (url === AUDIO_ASSETS.arbolLaugh) {
+      this.synthArbolLaugh(volume, Boolean(options?.echo));
+      return true;
+    }
+    if (url === AUDIO_ASSETS.nonLaugh) {
+      this.synthNonLaugh(volume, Boolean(options?.echo));
+      return true;
+    }
+    if (url === AUDIO_ASSETS.champiTires) {
+      this.synthChampiTires(volume);
+      return true;
+    }
+    if (url === AUDIO_ASSETS.glassBreak) {
+      this.synthGlassBreak(volume);
+      return true;
+    }
+    return false;
+  }
+
   private playBufferOrAudio(
     url: string,
     volume: number,
@@ -2246,7 +2588,16 @@ class SoundEngine {
       return;
     }
 
-    void this.loadSfxBuffer(url);
+    if (this.failedSfxUrls.has(url)) {
+      this.playSynthFallbackByUrl(url, volume, options);
+      return;
+    }
+
+    void this.loadSfxBuffer(url).then((decoded) => {
+      if (!decoded && this.failedSfxUrls.has(url)) {
+        // Fallback already triggered if HTML audio fails; avoid duplicate play
+      }
+    });
     const audio = new Audio(url);
     audio.volume = volume;
     audio.muted = this.muted;
@@ -2255,7 +2606,9 @@ class SoundEngine {
     } catch {
       // ignore seek
     }
-    void audio.play().catch(() => {});
+    void audio.play().catch(() => {
+      this.playSynthFallbackByUrl(url, volume, options);
+    });
     if (options?.maxDurationMs) {
       window.setTimeout(() => {
         try {
@@ -2276,6 +2629,15 @@ class SoundEngine {
   }
 
   public stopNonCrawl() {
+    this.nonCrawlToken += 1;
+    if (this.activeNonCrawlSynthStop) {
+      try {
+        this.activeNonCrawlSynthStop();
+      } catch {
+        // ignore
+      }
+      this.activeNonCrawlSynthStop = null;
+    }
     if (this.activeNonCrawlSource) {
       try {
         this.activeNonCrawlSource.stop(0);
@@ -2296,9 +2658,61 @@ class SoundEngine {
     }
   }
 
+  private synthNonCrawl(volume = 0.56, token: number) {
+    const ctx = this.ensureContext();
+    const echo = this.getEchoBus();
+    if (!ctx || !echo || token !== this.nonCrawlToken) return;
+    const now = ctx.currentTime;
+    const activeNodes: Array<AudioScheduledSourceNode> = [];
+    const steps = [0, 0.19, 0.38, 0.58, 0.79, 1.0];
+    steps.forEach((offset, idx) => {
+      const t = now + offset;
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = idx % 2 === 0 ? 'triangle' : 'sawtooth';
+      osc.frequency.setValueAtTime(idx % 2 === 0 ? 185 : 260, t);
+      osc.frequency.exponentialRampToValueAtTime(75, t + 0.11);
+      g.gain.setValueAtTime(Math.min(0.24, volume * 0.26), t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+      osc.connect(g);
+      g.connect(echo);
+      osc.start(t);
+      osc.stop(t + 0.13);
+      activeNodes.push(osc);
+      if (this.noiseBuffer) {
+        const n = ctx.createBufferSource();
+        n.buffer = this.noiseBuffer;
+        const bp = ctx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.value = 1100;
+        bp.Q.value = 2.6;
+        const ng = ctx.createGain();
+        ng.gain.setValueAtTime(Math.min(0.22, volume * 0.28), t);
+        ng.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+        n.connect(bp);
+        bp.connect(ng);
+        ng.connect(echo);
+        n.start(t);
+        n.stop(t + 0.11);
+        activeNodes.push(n);
+      }
+    });
+    this.activeNonCrawlSynthStop = () => {
+      activeNodes.forEach((node) => {
+        try {
+          node.stop(0);
+          node.disconnect();
+        } catch {
+          // ignore
+        }
+      });
+    };
+  }
+
   public playNonCrawl(volume = 0.56) {
     this.stopNonCrawl();
     if (this.muted || this.rechargingSilence) return;
+    const token = ++this.nonCrawlToken;
     const url = AUDIO_ASSETS.nonCrawl;
     const ctx = this.ensureContext();
     const echo = this.getEchoBus();
@@ -2319,12 +2733,31 @@ class SoundEngine {
       return;
     }
 
+    if (this.failedSfxUrls.has(url)) {
+      this.synthNonCrawl(volume, token);
+      return;
+    }
+
     void this.loadSfxBuffer(url);
     const audio = new Audio(url);
-    audio.volume = volume;
+    audio.volume = Math.min(1, volume);
     audio.muted = this.muted;
+    try {
+      audio.currentTime = ASSET_FALLBACK_OFFSET_SEC[url] ?? 0;
+    } catch {
+      // ignore seek before ready
+    }
+    audio.onended = () => {
+      if (this.activeNonCrawlAudio === audio) {
+        this.activeNonCrawlAudio = null;
+      }
+    };
     this.activeNonCrawlAudio = audio;
-    void audio.play().catch(() => {});
+    void audio.play().catch(() => {
+      if (token === this.nonCrawlToken && !this.muted && !this.rechargingSilence) {
+        this.synthNonCrawl(volume, token);
+      }
+    });
   }
 
   public playNonLaugh(volume = 0.76, isHallwayWarn = false) {
@@ -2338,6 +2771,12 @@ class SoundEngine {
     this.playBufferOrAudio(AUDIO_ASSETS.champiTires, volume, {
       markBossWindowMs: isHallwayWarn ? 1600 : 0,
       maxDurationMs: 1850,
+    });
+  }
+
+  public playChampiGears(volume = 0.68) {
+    this.playBufferOrAudio(AUDIO_ASSETS.champiGears, volume, {
+      maxDurationMs: 1650,
     });
   }
 
@@ -2547,12 +2986,21 @@ class SoundEngine {
     }
   }
 
-  public playGlassBreak(volume = 0.84) {
-    this.playBufferOrAudio(AUDIO_ASSETS.glassBreak, volume);
+  public playGlassBreak(volume = 0.92) {
+    if (this.muted || this.rechargingSilence) return;
+    this.synthGlassBreak(volume);
   }
 
   public stopCamInterference() {
     this.interferenceToken += 1;
+    if (this.activeInterferenceSynthStop) {
+      try {
+        this.activeInterferenceSynthStop();
+      } catch {
+        // ignore
+      }
+      this.activeInterferenceSynthStop = null;
+    }
     if (this.activeInterferenceSource) {
       try {
         this.activeInterferenceSource.stop(0);
@@ -2571,6 +3019,54 @@ class SoundEngine {
       }
       this.activeInterferenceAudio = null;
     }
+  }
+
+  private synthCamInterference(volume = 0.78, token: number) {
+    const ctx = this.ensureContext();
+    const dry = this.getDryBus();
+    if (!ctx || !dry || token !== this.interferenceToken) return;
+    const now = ctx.currentTime;
+    const nodes: AudioScheduledSourceNode[] = [];
+    const osc = ctx.createOscillator();
+    const og = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(125, now);
+    osc.frequency.linearRampToValueAtTime(60, now + 1.1);
+    og.gain.setValueAtTime(Math.min(0.18, volume * 0.16), now);
+    og.gain.exponentialRampToValueAtTime(0.001, now + 1.15);
+    osc.connect(og);
+    og.connect(dry);
+    osc.start(now);
+    osc.stop(now + 1.18);
+    nodes.push(osc);
+    if (this.noiseBuffer) {
+      const n = ctx.createBufferSource();
+      n.buffer = this.noiseBuffer;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.setValueAtTime(1900, now);
+      bp.frequency.exponentialRampToValueAtTime(680, now + 1.1);
+      bp.Q.value = 1.6;
+      const ng = ctx.createGain();
+      ng.gain.setValueAtTime(Math.min(0.32, volume * 0.34), now);
+      ng.gain.exponentialRampToValueAtTime(0.001, now + 1.15);
+      n.connect(bp);
+      bp.connect(ng);
+      ng.connect(dry);
+      n.start(now);
+      n.stop(now + 1.18);
+      nodes.push(n);
+    }
+    this.activeInterferenceSynthStop = () => {
+      nodes.forEach((node) => {
+        try {
+          node.stop(0);
+          node.disconnect();
+        } catch {
+          // ignore
+        }
+      });
+    };
   }
 
   public playCamInterference(volume = 0.78) {
@@ -2597,18 +3093,42 @@ class SoundEngine {
       return;
     }
 
+    if (this.failedSfxUrls.has(url)) {
+      this.synthCamInterference(volume, token);
+      return;
+    }
+
     void this.loadSfxBuffer(url);
     const audio = new Audio(url);
     audio.volume = volume;
     audio.muted = this.muted;
     this.activeInterferenceAudio = audio;
-    void audio.play().then(() => {
-      if (token !== this.interferenceToken || this.muted) audio.pause();
-    }).catch(() => {});
+    void audio
+      .play()
+      .then(() => {
+        if (token !== this.interferenceToken || this.muted) audio.pause();
+      })
+      .catch(() => {
+        if (token === this.interferenceToken && !this.muted && !this.rechargingSilence) {
+          this.synthCamInterference(volume, token);
+        }
+      });
   }
 
   public stopCharroVoice() {
     this.charroToken += 1;
+    if (this.charroDuckedMusic) {
+      this.charroDuckedMusic = false;
+      this.setNightMusicDucked(false);
+    }
+    if (this.activeCharroSynthStop) {
+      try {
+        this.activeCharroSynthStop();
+      } catch {
+        // ignore
+      }
+      this.activeCharroSynthStop = null;
+    }
     if (this.activeCharroSource) {
       try {
         this.activeCharroSource.stop(0);
@@ -2628,13 +3148,135 @@ class SoundEngine {
       }
       this.activeCharroAudio = null;
     }
+    if (this.activeCharroUtterance) {
+      this.activeCharroUtterance = null;
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        try {
+          window.speechSynthesis.cancel();
+        } catch {
+          // ignore
+        }
+      }
+    }
   }
 
-  public playCharroVoice(volume = 0.88, maxDurationMs?: number) {
+  private synthCharroVoice(volume = 0.88, maxDurationMs?: number, token?: number) {
+    const ctx = this.ensureContext();
+    const echo = this.getEchoBus();
+    if (!ctx || !echo || (token !== undefined && token !== this.charroToken)) return;
+    const now = ctx.currentTime;
+    const durSec = maxDurationMs ? Math.min(2.6, maxDurationMs / 1000) : 2.8;
+    const nodes: AudioScheduledSourceNode[] = [];
+
+    // Dark spectral bass growl + eerie metallic whip resonance
+    const bass = ctx.createOscillator();
+    const sub = ctx.createOscillator();
+    const lp = ctx.createBiquadFilter();
+    const g = ctx.createGain();
+    bass.type = 'sawtooth';
+    sub.type = 'triangle';
+    bass.frequency.setValueAtTime(92, now);
+    bass.frequency.linearRampToValueAtTime(62, now + durSec);
+    sub.frequency.setValueAtTime(46, now);
+    sub.frequency.linearRampToValueAtTime(34, now + durSec);
+    lp.type = 'lowpass';
+    lp.frequency.setValueAtTime(340, now);
+    lp.Q.value = 3.5;
+    const amp = Math.min(0.28, volume * 0.28);
+    g.gain.setValueAtTime(0.001, now);
+    g.gain.linearRampToValueAtTime(amp, now + 0.08);
+    g.gain.exponentialRampToValueAtTime(0.001, now + durSec);
+    bass.connect(lp);
+    sub.connect(lp);
+    lp.connect(g);
+    g.connect(echo);
+    bass.start(now);
+    sub.start(now);
+    bass.stop(now + durSec + 0.04);
+    sub.stop(now + durSec + 0.04);
+    nodes.push(bass, sub);
+
+    if (this.noiseBuffer) {
+      const whip = ctx.createBufferSource();
+      whip.buffer = this.noiseBuffer;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.setValueAtTime(2400, now + 0.05);
+      bp.frequency.exponentialRampToValueAtTime(520, now + 0.36);
+      bp.Q.value = 3.0;
+      const wg = ctx.createGain();
+      wg.gain.setValueAtTime(0.001, now + 0.05);
+      wg.gain.linearRampToValueAtTime(amp * 0.65, now + 0.08);
+      wg.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+      whip.connect(bp);
+      bp.connect(wg);
+      wg.connect(echo);
+      whip.start(now + 0.05);
+      whip.stop(now + 0.4);
+      nodes.push(whip);
+    }
+
+    if (
+      typeof window !== 'undefined' &&
+      'speechSynthesis' in window &&
+      typeof SpeechSynthesisUtterance !== 'undefined' &&
+      token === this.charroToken
+    ) {
+      try {
+        window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(
+          'Devolver el alma de Beatriz... pues eso ya no se puede, ya me la llevé'
+        );
+        utter.lang = 'es-MX';
+        utter.pitch = 0.25;
+        utter.rate = 0.92;
+        utter.volume = Math.min(1, volume);
+        const voices = window.speechSynthesis.getVoices();
+        const esVoice = voices.find((v) => v.lang.toLowerCase().startsWith('es'));
+        if (esVoice) utter.voice = esVoice;
+        utter.onend = () => {
+          if (this.activeCharroUtterance === utter) {
+            this.activeCharroUtterance = null;
+          }
+        };
+        utter.onerror = () => {
+          if (this.activeCharroUtterance === utter) {
+            this.activeCharroUtterance = null;
+          }
+        };
+        this.activeCharroUtterance = utter;
+        window.speechSynthesis.speak(utter);
+      } catch {
+        // ignore speech synthesis fallback errors
+      }
+    }
+
+    this.activeCharroSynthStop = () => {
+      nodes.forEach((node) => {
+        try {
+          node.stop(0);
+          node.disconnect();
+        } catch {
+          // ignore
+        }
+      });
+    };
+  }
+
+  public playCharroVoice(volume = 0.96, maxDurationMs?: number) {
     this.stopCharroVoice();
     if (this.muted || this.rechargingSilence) return;
     const token = ++this.charroToken;
     const url = AUDIO_ASSETS.charroVoice;
+    const playVol = Math.min(1, Math.max(0.95, volume));
+    this.charroDuckedMusic = true;
+    this.setNightMusicDucked(true);
+    const restoreDuck = () => {
+      if (token === this.charroToken && this.charroDuckedMusic) {
+        this.charroDuckedMusic = false;
+        this.setNightMusicDucked(false);
+      }
+    };
     const ctx = this.ensureContext();
     const dry = this.getDryBus();
     const buffer = this.sfxBuffers.get(url);
@@ -2643,11 +3285,12 @@ class SoundEngine {
       const src = ctx.createBufferSource();
       src.buffer = buffer;
       const g = ctx.createGain();
-      g.gain.value = volume;
+      g.gain.value = playVol;
       src.connect(g);
       g.connect(dry);
       src.onended = () => {
         if (this.activeCharroSource === src) this.activeCharroSource = null;
+        restoreDuck();
       };
       this.activeCharroSource = src;
       src.start(0);
@@ -2657,29 +3300,46 @@ class SoundEngine {
       return;
     }
 
+    if (this.failedSfxUrls.has(url)) {
+      this.synthCharroVoice(playVol, maxDurationMs, token);
+      return;
+    }
+
     void this.loadSfxBuffer(url);
     const audio = new Audio(url);
-    audio.volume = volume;
+    audio.volume = playVol;
     audio.muted = this.muted;
+    audio.onended = () => {
+      if (this.activeCharroAudio === audio) this.activeCharroAudio = null;
+      restoreDuck();
+    };
     this.activeCharroAudio = audio;
-    void audio.play().then(() => {
-      if (token !== this.charroToken || this.muted) {
-        audio.pause();
-        return;
-      }
-      if (maxDurationMs) {
-        window.setTimeout(() => {
-          if (token === this.charroToken || this.activeCharroAudio === audio) {
-            try {
-              audio.pause();
-              audio.currentTime = 0;
-            } catch {
-              // ignore
+    void audio
+      .play()
+      .then(() => {
+        if (token !== this.charroToken || this.muted) {
+          audio.pause();
+          return;
+        }
+        if (maxDurationMs) {
+          window.setTimeout(() => {
+            if (token === this.charroToken && this.activeCharroAudio === audio) {
+              try {
+                audio.pause();
+                audio.currentTime = 0;
+              } catch {
+                // ignore
+              }
+              restoreDuck();
             }
-          }
-        }, maxDurationMs);
-      }
-    }).catch(() => {});
+          }, maxDurationMs);
+        }
+      })
+      .catch(() => {
+        if (token === this.charroToken && !this.muted && !this.rechargingSilence) {
+          this.synthCharroVoice(playVol, maxDurationMs, token);
+        }
+      });
   }
 
   public stopJumpscare() {
@@ -2705,6 +3365,56 @@ class SoundEngine {
     }
   }
 
+  private synthJumpscare(killer: TelechobiId) {
+    const ctx = this.ensureContext();
+    const dry = this.getDryBus();
+    if (!ctx || !dry) return;
+    const now = ctx.currentTime;
+    const baseFreq =
+      killer === 'charro' || killer === 'arbol'
+        ? 185
+        : killer === 'champi' || killer === 'tis'
+          ? 340
+          : 260;
+
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const shaperGain = ctx.createGain();
+    osc1.type = 'sawtooth';
+    osc2.type = 'square';
+    osc1.frequency.setValueAtTime(baseFreq, now);
+    osc1.frequency.exponentialRampToValueAtTime(baseFreq * 2.4, now + 0.14);
+    osc1.frequency.linearRampToValueAtTime(baseFreq * 1.4, now + 1.15);
+    osc2.frequency.setValueAtTime(baseFreq * 1.48, now);
+    osc2.frequency.linearRampToValueAtTime(baseFreq * 2.9, now + 0.9);
+    shaperGain.gain.setValueAtTime(0.42, now);
+    shaperGain.gain.exponentialRampToValueAtTime(0.002, now + 1.25);
+    osc1.connect(shaperGain);
+    osc2.connect(shaperGain);
+    shaperGain.connect(dry);
+    osc1.start(now);
+    osc2.start(now);
+    osc1.stop(now + 1.28);
+    osc2.stop(now + 1.28);
+
+    if (this.noiseBuffer) {
+      const n = ctx.createBufferSource();
+      n.buffer = this.noiseBuffer;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 1450;
+      bp.Q.value = 1.1;
+      const ng = ctx.createGain();
+      ng.gain.setValueAtTime(0.55, now);
+      ng.gain.exponentialRampToValueAtTime(0.002, now + 1.2);
+      n.connect(bp);
+      bp.connect(ng);
+      ng.connect(dry);
+      n.start(now);
+      n.stop(now + 1.22);
+    }
+  }
+
   public playJumpscare(
     killer: TelechobiId = 'ton',
     source: JumpscareSource = 'door'
@@ -2723,6 +3433,10 @@ class SoundEngine {
     this.stopCamInterference();
     this.stopNonCrawl();
     this.stopChampiFoxyRun();
+    this.stopGlamrockDuel();
+    this.stopAuraBattleSong();
+    this.stopTralaleroSong();
+    this.stopPaperMove();
     if (this.muted) return;
 
     if (source === 'oxygen') {
@@ -2772,6 +3486,11 @@ class SoundEngine {
       return;
     }
 
+    if (this.failedSfxUrls.has(assetUrl)) {
+      this.synthJumpscare(killer);
+      return;
+    }
+
     void this.loadSfxBuffer(assetUrl);
     const audio = new Audio(assetUrl);
     audio.volume = 0.96;
@@ -2787,11 +3506,18 @@ class SoundEngine {
       }
     };
     this.activeJumpscareAudio = audio;
-    void audio.play().then(() => {
-      if (token !== this.jumpscareToken || this.muted) {
-        audio.pause();
-      }
-    }).catch(() => {});
+    void audio
+      .play()
+      .then(() => {
+        if (token !== this.jumpscareToken || this.muted) {
+          audio.pause();
+        }
+      })
+      .catch(() => {
+        if (token === this.jumpscareToken && !this.muted) {
+          this.synthJumpscare(killer);
+        }
+      });
   }
 
   public play6AMChime() {
@@ -2946,6 +3672,217 @@ class SoundEngine {
       osc.start(t);
       osc.stop(t + 5.3);
     });
+  }
+
+  public stopGlamrockDuel() {
+    this.glamrockDuelToken += 1;
+    if (this.activeGlamrockDuelSource) {
+      try {
+        this.activeGlamrockDuelSource.stop(0);
+        this.activeGlamrockDuelSource.disconnect();
+      } catch {
+        // ignore
+      }
+      this.activeGlamrockDuelSource = null;
+    }
+    if (this.activeGlamrockDuelAudio) {
+      try {
+        this.activeGlamrockDuelAudio.pause();
+        this.activeGlamrockDuelAudio.currentTime = 0;
+        this.activeGlamrockDuelAudio.src = '';
+      } catch {
+        // ignore
+      }
+      this.activeGlamrockDuelAudio = null;
+    }
+  }
+
+  public playGlamrockDuel(volume = 0.94) {
+    this.stopGlamrockDuel();
+    if (this.muted || this.rechargingSilence) return;
+    const token = ++this.glamrockDuelToken;
+    const url = AUDIO_ASSETS.glamrockDuel;
+    const ctx = this.ensureContext();
+    const dry = this.getDryBus();
+    const buffer = this.sfxBuffers.get(url);
+
+    if (ctx && dry && buffer) {
+      const src = ctx.createBufferSource();
+      src.buffer = buffer;
+      const g = ctx.createGain();
+      g.gain.value = volume;
+      src.connect(g);
+      g.connect(dry);
+      src.onended = () => {
+        if (this.activeGlamrockDuelSource === src) {
+          this.activeGlamrockDuelSource = null;
+        }
+      };
+      this.activeGlamrockDuelSource = src;
+      src.start(0);
+      return;
+    }
+
+    void this.loadSfxBuffer(url);
+    const audio = new Audio(url);
+    audio.volume = volume;
+    audio.muted = this.muted;
+    audio.onended = () => {
+      if (this.activeGlamrockDuelAudio === audio) {
+        this.activeGlamrockDuelAudio = null;
+      }
+    };
+    this.activeGlamrockDuelAudio = audio;
+    void audio.play().then(() => {
+      if (token !== this.glamrockDuelToken || this.muted) {
+        audio.pause();
+      }
+    }).catch(() => {});
+  }
+
+  public stopAuraBattleSong() {
+    this.auraBattleToken += 1;
+    if (this.auraBattleAudio) {
+      try {
+        this.auraBattleAudio.pause();
+        this.auraBattleAudio.currentTime = 0;
+        this.auraBattleAudio.src = '';
+      } catch {
+        // ignore
+      }
+      this.auraBattleAudio = null;
+    }
+    if (this.nightMusicShouldPlay && this.nightMusicAudio && !this.rechargingSilence) {
+      this.setNightMusicDucked(false);
+    }
+  }
+
+  public startAuraBattleSong(volume = 0.72) {
+    this.stopGlamrockDuel();
+    this.stopAuraBattleSong();
+    if (this.muted || this.rechargingSilence) return;
+    const token = ++this.auraBattleToken;
+    this.setNightMusicDucked(true);
+    const audio = new Audio(AUDIO_ASSETS.auraFarmerSong);
+    audio.loop = true;
+    audio.volume = volume;
+    audio.muted = this.muted;
+    try {
+      audio.currentTime = 0;
+    } catch {
+      // ignore
+    }
+    this.auraBattleAudio = audio;
+    void audio.play().then(() => {
+      if (token !== this.auraBattleToken || this.muted) {
+        audio.pause();
+      }
+    }).catch(() => {});
+  }
+
+  public stopTralaleroSong() {
+    this.tralaleroToken += 1;
+    if (this.tralaleroAudio) {
+      try {
+        this.tralaleroAudio.pause();
+        this.tralaleroAudio.currentTime = 0;
+        this.tralaleroAudio.src = '';
+      } catch {
+        // ignore
+      }
+      this.tralaleroAudio = null;
+    }
+    if (this.nightMusicShouldPlay && this.nightMusicAudio && !this.rechargingSilence) {
+      this.setNightMusicDucked(false);
+    }
+  }
+
+  public startTralaleroSong(volume = 0.65) {
+    this.stopTralaleroSong();
+    if (this.muted || this.rechargingSilence) return;
+    const token = ++this.tralaleroToken;
+    this.setNightMusicDucked(true);
+    const audio = new Audio(AUDIO_ASSETS.tralaleroSong);
+    audio.loop = true;
+    audio.volume = volume;
+    audio.muted = this.muted;
+    try {
+      audio.currentTime = 0;
+    } catch {
+      // ignore
+    }
+    this.tralaleroAudio = audio;
+    void audio.play().then(() => {
+      if (token !== this.tralaleroToken || this.muted) {
+        audio.pause();
+      }
+    }).catch(() => {});
+  }
+
+  public stopPaperMove() {
+    this.paperToken += 1;
+    if (this.activePaperSource) {
+      try {
+        this.activePaperSource.stop(0);
+        this.activePaperSource.disconnect();
+      } catch {
+        // ignore
+      }
+      this.activePaperSource = null;
+    }
+    if (this.activePaperAudio) {
+      try {
+        this.activePaperAudio.pause();
+        this.activePaperAudio.currentTime = 0;
+        this.activePaperAudio.src = '';
+      } catch {
+        // ignore
+      }
+      this.activePaperAudio = null;
+    }
+  }
+
+  public playPaperMove(volume = 0.92) {
+    this.stopPaperMove();
+    if (this.muted) return;
+    const token = ++this.paperToken;
+    const url = AUDIO_ASSETS.paperMove;
+    const ctx = this.ensureContext();
+    const dry = this.getDryBus();
+    const buffer = this.sfxBuffers.get(url);
+
+    if (ctx && dry && buffer) {
+      const src = ctx.createBufferSource();
+      src.buffer = buffer;
+      const g = ctx.createGain();
+      g.gain.value = volume;
+      src.connect(g);
+      g.connect(dry);
+      src.onended = () => {
+        if (this.activePaperSource === src) {
+          this.activePaperSource = null;
+        }
+      };
+      this.activePaperSource = src;
+      src.start(0);
+      return;
+    }
+
+    void this.loadSfxBuffer(url);
+    const audio = new Audio(url);
+    audio.volume = volume;
+    audio.muted = this.muted;
+    audio.onended = () => {
+      if (this.activePaperAudio === audio) {
+        this.activePaperAudio = null;
+      }
+    };
+    this.activePaperAudio = audio;
+    void audio.play().then(() => {
+      if (token !== this.paperToken || this.muted) {
+        audio.pause();
+      }
+    }).catch(() => {});
   }
 }
 

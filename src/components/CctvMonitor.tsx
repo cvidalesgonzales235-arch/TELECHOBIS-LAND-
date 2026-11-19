@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { PhoneCall, RefreshCw, VideoOff } from 'lucide-react';
-import { CAMERA_ROOMS, CameraId, OFFICE_ASSETS, TELECHOBIS, TelechobiId } from '../types/game';
+import {
+  CAMERA_ROOMS,
+  CameraId,
+  OFFICE_ASSETS,
+  STUDIO_DECOR_PROPS,
+  TELECHOBIS,
+  TelechobiId,
+} from '../types/game';
 import { StaticCanvas } from './StaticCanvas';
 import { CobwebCorner, CrackedGlassCorner, TelechobiSprite } from './TelechobiArt';
 import { soundEngine } from '../audio/soundEngine';
@@ -12,10 +19,12 @@ interface CctvMonitorProps {
     TelechobiId,
     CameraId | 'left_door' | 'right_door' | 'hall_far' | 'hall_near' | 'office'
   >;
+  ventThreatEnemy?: TelechobiId | null;
   brokenCams: Partial<Record<CameraId, number>>;
   deactivatedEnemies?: TelechobiId[];
   champiInterferenceCam?: CameraId | null;
   radarActive?: boolean;
+  infiniteHomerMoans?: boolean;
   lensTension: number;
   phoneFailed: boolean;
   phoneCooldown: number;
@@ -25,6 +34,295 @@ interface CctvMonitorProps {
   onPhoneSystemRepaired: () => void;
 }
 
+interface RoomPropSpec {
+  src: string;
+  alt: string;
+  className: string;
+  opacity?: number;
+  vintage?: boolean;
+}
+
+const CAMERA_ROOM_PROPS: Record<CameraId, RoomPropSpec[]> = {
+  cam1: [
+    {
+      src: STUDIO_DECOR_PROPS.posterGroup,
+      alt: 'Póster TeLeCHOBIS en pared',
+      className: 'left-[7%] top-[14%] w-[15%] rotate-[-4deg]',
+      opacity: 0.82,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.vintagePhoto,
+      alt: 'Fotografía antigua desgastada del estudio',
+      className: 'left-[26%] top-[19%] w-[12%] rotate-[4deg]',
+      opacity: 0.72,
+      vintage: true,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.shoesCables,
+      alt: 'Cables y tenis abandonados',
+      className: 'right-[5%] bottom-[3%] w-[26%]',
+      opacity: 0.85,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.posterPink,
+      alt: 'Póster rosa rasgado',
+      className: 'right-[9%] top-[20%] w-[9%] rotate-[5deg]',
+      opacity: 0.72,
+    },
+  ],
+  cam2: [
+    {
+      src: STUDIO_DECOR_PROPS.bannerBalloons,
+      alt: 'Lona TeLeCHOBIS con globos',
+      className: 'left-[22%] top-[4%] w-[44%] rotate-[-2deg]',
+      opacity: 0.84,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.vintagePhoto,
+      alt: 'Retrato antiguo amarillento en pared',
+      className: 'left-[8%] top-[24%] w-[12%] rotate-[-6deg]',
+      opacity: 0.7,
+      vintage: true,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.posterPink,
+      alt: 'Póster rosa de Telechobi',
+      className: 'right-[8%] top-[24%] w-[11%] rotate-[3deg]',
+      opacity: 0.8,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.boxBalls,
+      alt: 'Caja con pelotas',
+      className: 'left-[4%] bottom-[2%] w-[16%]',
+      opacity: 0.86,
+    },
+  ],
+  cam3: [
+    {
+      src: STUDIO_DECOR_PROPS.clothesChair,
+      alt: 'Ropa de vestuario de los 90s y botas',
+      className: 'right-[4%] bottom-[2%] w-[28%]',
+      opacity: 0.84,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.posterYellow,
+      alt: 'Retrato Telechobi amarillo',
+      className: 'left-[10%] top-[14%] w-[12%] rotate-[-3deg]',
+      opacity: 0.8,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.vintagePhoto,
+      alt: 'Foto vieja clavada en vestuario',
+      className: 'right-[12%] top-[17%] w-[12%] rotate-[-5deg]',
+      opacity: 0.72,
+      vintage: true,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.boxBalls,
+      alt: 'Caja de utilería',
+      className: 'left-[5%] bottom-[4%] w-[16%]',
+      opacity: 0.82,
+    },
+  ],
+  cam4: [
+    {
+      src: STUDIO_DECOR_PROPS.serverRackLeft,
+      alt: 'Rack de transmisión TV',
+      className: 'left-[4%] bottom-[2%] w-[21%]',
+      opacity: 0.86,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.pcDeskFg,
+      alt: 'Monitor CRT y muñecos de edición',
+      className: 'right-[3%] bottom-[1%] w-[31%]',
+      opacity: 0.85,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.posterGroup,
+      alt: 'Cartel oficial del elenco',
+      className: 'left-[32%] top-[10%] w-[14%] rotate-[2deg]',
+      opacity: 0.78,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.vintagePhoto,
+      alt: 'Fotografía antigua archivada en control',
+      className: 'right-[11%] top-[15%] w-[11%] rotate-[6deg]',
+      opacity: 0.7,
+      vintage: true,
+    },
+  ],
+  cam5: [
+    {
+      src: STUDIO_DECOR_PROPS.bannerBalloons,
+      alt: 'Banderín y globos del foro',
+      className: 'left-[28%] top-[5%] w-[46%] rotate-[1deg]',
+      opacity: 0.85,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.vintagePhoto,
+      alt: 'Cuadro viejo olvidado en el foro',
+      className: 'left-[9%] top-[20%] w-[12%] rotate-[-4deg]',
+      opacity: 0.72,
+      vintage: true,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.plushTopDuo,
+      alt: 'Peluches sobre utilería',
+      className: 'left-[8%] bottom-[4%] w-[20%]',
+      opacity: 0.84,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.boxBalls,
+      alt: 'Caja con pelotas del set',
+      className: 'right-[6%] bottom-[3%] w-[16%]',
+      opacity: 0.85,
+    },
+  ],
+  cam6: [
+    {
+      src: STUDIO_DECOR_PROPS.pcDeskRight,
+      alt: 'Escritorio administrativo con CRT',
+      className: 'right-[5%] bottom-[3%] w-[28%]',
+      opacity: 0.84,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.posterYellow,
+      alt: 'Póster en pared administrativa',
+      className: 'left-[10%] top-[16%] w-[12%] rotate-[-4deg]',
+      opacity: 0.8,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.vintagePhoto,
+      alt: 'Foto antigua en pasillo administrativo',
+      className: 'right-[12%] top-[14%] w-[11%] rotate-[4deg]',
+      opacity: 0.7,
+      vintage: true,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.clothesChair,
+      alt: 'Chamarra y silla abandonada',
+      className: 'left-[4%] bottom-[2%] w-[24%]',
+      opacity: 0.82,
+    },
+  ],
+  cam7: [
+    {
+      src: STUDIO_DECOR_PROPS.serverRackLeft,
+      alt: 'Rack de cintas y cables desechados',
+      className: 'left-[4%] bottom-[2%] w-[22%]',
+      opacity: 0.85,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.shoesCables,
+      alt: 'Cables sueltos y calzado en el piso',
+      className: 'right-[7%] bottom-[2%] w-[28%]',
+      opacity: 0.86,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.posterPink,
+      alt: 'Cartel olvidado entre desechos',
+      className: 'right-[12%] top-[15%] w-[10%] rotate-[-6deg]',
+      opacity: 0.74,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.vintagePhoto,
+      alt: 'Foto vieja manchada de humedad',
+      className: 'left-[28%] top-[18%] w-[11%] rotate-[7deg]',
+      opacity: 0.68,
+      vintage: true,
+    },
+  ],
+  cam8: [
+    {
+      src: STUDIO_DECOR_PROPS.serverRackRight,
+      alt: 'Rack de servidores del sótano',
+      className: 'right-[5%] bottom-[2%] w-[22%]',
+      opacity: 0.86,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.shoesCables,
+      alt: 'Cables y zapatos en el sótano',
+      className: 'left-[6%] bottom-[2%] w-[27%]',
+      opacity: 0.84,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.posterGroup,
+      alt: 'Póster húmedo en pared del sótano',
+      className: 'left-[11%] top-[14%] w-[14%] rotate-[3deg]',
+      opacity: 0.76,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.vintagePhoto,
+      alt: 'Fotografía antigua colgada en sótano',
+      className: 'right-[29%] top-[17%] w-[11%] rotate-[-5deg]',
+      opacity: 0.68,
+      vintage: true,
+    },
+  ],
+  cam9: [
+    {
+      src: STUDIO_DECOR_PROPS.posterGroup,
+      alt: 'Póster TeLeCHOBIS junto al arcade',
+      className: 'left-[6%] top-[14%] w-[15%] rotate-[-3deg]',
+      opacity: 0.84,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.bannerBalloons,
+      alt: 'Lona festiva abandonada',
+      className: 'right-[10%] top-[4%] w-[40%] rotate-[2deg]',
+      opacity: 0.78,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.vintagePhoto,
+      alt: 'Fotografía antigua del elenco junto al arcade',
+      className: 'left-[27%] top-[19%] w-[12%] rotate-[3deg]',
+      opacity: 0.74,
+      vintage: true,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.boxBalls,
+      alt: 'Caja con pelotas en la esquina',
+      className: 'right-[4%] bottom-[3%] w-[16%]',
+      opacity: 0.86,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.plushTopDuo,
+      alt: 'Peluches sobre gabinete',
+      className: 'left-[10%] bottom-[4%] w-[18%]',
+      opacity: 0.84,
+    },
+  ],
+  cam10: [
+    {
+      src: STUDIO_DECOR_PROPS.clothesChair,
+      alt: 'Ropa de utilería y botas en acceso',
+      className: 'left-[4%] bottom-[2%] w-[26%]',
+      opacity: 0.84,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.posterYellow,
+      alt: 'Póster en muro exterior',
+      className: 'right-[11%] top-[15%] w-[12%] rotate-[4deg]',
+      opacity: 0.8,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.vintagePhoto,
+      alt: 'Foto antigua descolorida en acceso',
+      className: 'left-[14%] top-[16%] w-[12%] rotate-[-5deg]',
+      opacity: 0.7,
+      vintage: true,
+    },
+    {
+      src: STUDIO_DECOR_PROPS.serverRackRight,
+      alt: 'Rack auxiliar en pasillo exterior',
+      className: 'right-[4%] bottom-[2%] w-[19%]',
+      opacity: 0.82,
+    },
+  ],
+  cam11: [],
+  cam12: [],
+};
+
 interface BlueprintCamSpec {
   id: CameraId;
   leftPct: number;
@@ -32,8 +330,9 @@ interface BlueprintCamSpec {
   pointer: 'right' | 'left' | 'down' | 'up';
 }
 
-// Exact layout matching reference architectural schematic (images_11c434e0.png)
+// 12-Camera architectural schematic: 10 studio rooms + 2 ventilation cameras (CAM 11 & CAM 12)
 const BLUEPRINT_CAMS: BlueprintCamSpec[] = [
+  { id: 'cam12', leftPct: 24.5, topPct: 11.5, pointer: 'down' },
   { id: 'cam9', leftPct: 54.5, topPct: 11.5, pointer: 'down' },
   { id: 'cam10', leftPct: 79.5, topPct: 21.5, pointer: 'left' },
   { id: 'cam7', leftPct: 16.5, topPct: 29.0, pointer: 'right' },
@@ -44,16 +343,19 @@ const BLUEPRINT_CAMS: BlueprintCamSpec[] = [
   { id: 'cam3', leftPct: 81.5, topPct: 60.5, pointer: 'left' },
   { id: 'cam2', leftPct: 64.0, topPct: 74.5, pointer: 'up' },
   { id: 'cam1', leftPct: 18.0, topPct: 83.5, pointer: 'right' },
+  { id: 'cam11', leftPct: 81.5, topPct: 82.0, pointer: 'left' },
 ];
 
 export function CctvMonitor({
   activeCam,
   onSelectCam,
   enemyRooms,
+  ventThreatEnemy = null,
   brokenCams,
   deactivatedEnemies = [],
   champiInterferenceCam = null,
   radarActive = false,
+  infiniteHomerMoans = false,
   lensTension,
   phoneFailed,
   phoneCooldown,
@@ -66,14 +368,35 @@ export function CctvMonitor({
   const [isHoldingReboot, setIsHoldingReboot] = useState(false);
   const [irMode, setIrMode] = useState<'bw' | 'green'>('bw');
   const [zoomFocus, setZoomFocus] = useState(false);
+  const [fingerTap, setFingerTap] = useState<{ kind: 'cam' | 'audio'; key: number } | null>(null);
   const holdTimerRef = useRef<number | null>(null);
+  const fingerTapTimerRef = useRef<number | null>(null);
+
+  const triggerFingerTap = (kind: 'cam' | 'audio') => {
+    setFingerTap({ kind, key: Date.now() });
+    if (fingerTapTimerRef.current) {
+      window.clearTimeout(fingerTapTimerRef.current);
+    }
+    fingerTapTimerRef.current = window.setTimeout(() => {
+      setFingerTap(null);
+      fingerTapTimerRef.current = null;
+    }, 360);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (fingerTapTimerRef.current) {
+        window.clearTimeout(fingerTapTimerRef.current);
+      }
+    };
+  }, []);
 
   const currentRoom = CAMERA_ROOMS.find((c) => c.id === activeCam) || CAMERA_ROOMS[0];
   const isCamBroken = Boolean(brokenCams[activeCam] && brokenCams[activeCam]! > Date.now());
   const showingChampiBanish = champiInterferenceCam === activeCam && !isCamBroken;
 
   const enemiesInThisCam = (Object.keys(enemyRooms) as TelechobiId[]).filter(
-    (id) => enemyRooms[id] === activeCam
+    (id) => enemyRooms[id] === activeCam && !deactivatedEnemies.includes(id)
   );
 
   useEffect(() => {
@@ -118,9 +441,9 @@ export function CctvMonitor({
       : Math.min(0.86, 0.25 + (lensTension / 100) * 0.55);
 
   return (
-    <div className="fixed inset-0 z-30 bg-[#040303]/92 backdrop-blur-[2px] flex flex-col pt-[102px] pb-[84px] lg:pt-[104px] lg:pb-[88px] px-2.5 sm:px-5 select-none overflow-hidden">
+    <div className="fixed inset-0 z-30 bg-[#040303]/92 backdrop-blur-[2px] flex flex-col pt-[58px] sm:pt-[78px] lg:pt-[96px] pb-[58px] sm:pb-[88px] short-landscape:pt-[50px] short-landscape:pb-[52px] px-2 sm:px-5 select-none overflow-hidden">
       {/* CONSOLA UNIFICADA DE CIRCUITO CERRADO (1990s MÉXICO · FORO 4 AJUSCO) */}
-      <div className="relative flex-1 min-h-0 max-w-6xl w-full mx-auto bg-gradient-to-b from-[#252019] via-[#171410] to-[#0f0d0a] border-[3px] border-[#493b2c] shadow-[0_26px_70px_rgba(0,0,0,0.96),inset_0_1px_0_rgba(255,244,214,0.12)] flex flex-col lg:flex-row overflow-hidden">
+      <div className="relative flex-1 min-h-0 max-w-6xl w-full mx-auto bg-gradient-to-b from-[#252019] via-[#171410] to-[#0f0d0a] border-[3px] border-[#493b2c] shadow-[0_26px_70px_rgba(0,0,0,0.96),inset_0_1px_0_rgba(255,244,214,0.12)] flex flex-col md:flex-row short-landscape:flex-row overflow-hidden">
         {/* Pátina orgánica de óxido, polvo y telarañas continuas sobre todo el chasis */}
         <div
           className="pointer-events-none absolute inset-0 opacity-50 z-10"
@@ -129,9 +452,9 @@ export function CctvMonitor({
               'radial-gradient(circle at 6% 8%, rgba(110,44,15,0.48), transparent 26%), radial-gradient(circle at 95% 90%, rgba(86,32,12,0.52), transparent 32%)',
           }}
         />
-        <CobwebCorner position="top-left" className="w-16 h-16 opacity-45 z-30" />
-        <CobwebCorner position="top-right" className="w-16 h-16 opacity-40 z-30" />
-        <CobwebCorner position="bottom-right" className="w-16 h-16 opacity-40 z-30" />
+        <CobwebCorner position="top-left" className="w-12 sm:w-16 h-12 sm:h-16 opacity-45 z-30" />
+        <CobwebCorner position="top-right" className="w-12 sm:w-16 h-12 sm:h-16 opacity-40 z-30" />
+        <CobwebCorner position="bottom-right" className="w-12 sm:w-16 h-12 sm:h-16 opacity-40 z-30" />
 
         {/* Cableado trenzado desgastado recorriendo el costado del monitor */}
         <svg
@@ -145,7 +468,7 @@ export function CctvMonitor({
         </svg>
 
         {/* ===================== SECCIÓN IZQUIERDA/SUPERIOR: TUBO CRT EMPOTRADO ===================== */}
-        <section className="relative flex-1 min-h-[155px] flex flex-col p-2 sm:p-3 overflow-hidden">
+        <section className="relative flex-1 min-h-[140px] min-w-0 flex flex-col p-1.5 sm:p-3 short-landscape:p-1.5 overflow-hidden">
           <div className="relative flex-1 min-h-0 rounded-md border-[3px] border-[#090807] bg-black overflow-hidden shadow-[inset_0_0_58px_rgba(0,0,0,1)]">
             {!isCamBroken ? (
               <>
@@ -161,6 +484,63 @@ export function CctvMonitor({
                       : 'grayscale contrast-125 brightness-[0.68] sepia-[.48] hue-rotate-[68deg] saturate-150'
                   }`}
                 />
+
+                {/* Decoraciones individuales de estudio integradas a la señal CCTV de cada cámara */}
+                {CAMERA_ROOM_PROPS[activeCam]?.map((prop, pIdx) =>
+                  prop.vintage ? (
+                    <div
+                      key={`${activeCam}-prop-${pIdx}`}
+                      className={`pointer-events-none absolute select-none transition-transform duration-200 ${
+                        zoomFocus ? 'scale-105' : ''
+                      } ${prop.className} p-[3px] bg-[#2a2117]/85 border border-[#b8a582]/45 shadow-[0_8px_18px_rgba(0,0,0,0.94)]`}
+                      style={{ opacity: prop.opacity ?? 0.72 }}
+                    >
+                      <div className="relative overflow-hidden">
+                        <img
+                          src={prop.src}
+                          alt={prop.alt}
+                          referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).style.display = 'none';
+                          }}
+                          className={`w-full h-auto object-cover block ${
+                            irMode === 'bw'
+                              ? 'grayscale contrast-135 brightness-[0.6] sepia-[.28]'
+                              : 'sepia-[.88] contrast-125 brightness-[0.62] saturate-75 hue-rotate-[35deg]'
+                          }`}
+                        />
+                        <div
+                          className="pointer-events-none absolute inset-0"
+                          style={{
+                            background:
+                              'radial-gradient(circle at 50% 45%, rgba(180,145,88,0.12) 0%, rgba(28,18,8,0.58) 100%)',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <img
+                      key={`${activeCam}-prop-${pIdx}`}
+                      src={prop.src}
+                      alt={prop.alt}
+                      referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).style.display = 'none';
+                      }}
+                      className={`pointer-events-none absolute h-auto object-contain select-none transition-transform duration-200 ${
+                        zoomFocus ? 'scale-105' : ''
+                      } ${prop.className} ${
+                        irMode === 'bw'
+                          ? 'grayscale contrast-125 brightness-[0.68]'
+                          : 'grayscale contrast-120 brightness-[0.68] sepia-[.48] hue-rotate-[68deg] saturate-140'
+                      }`}
+                      style={{
+                        opacity: prop.opacity ?? 0.82,
+                        filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.92))',
+                      }}
+                    />
+                  )
+                )}
 
                 {/* Reflejo difuso del foco infrarrojo en el cristal */}
                 <div
@@ -231,10 +611,6 @@ export function CctvMonitor({
                 <p className="font-mono-tech text-xs sm:text-sm text-red-400 tracking-wider font-bold">
                   SIN SEÑAL · LENTE DESTROZADO
                 </p>
-                <p className="font-mono-tech text-[10px] sm:text-[11px] text-zinc-400 mt-1 max-w-xs">
-                  El cristal de esta cámara estalló. Cambia a otra cámara en el plano mientras se
-                  reinicia el enlace.
-                </p>
               </div>
             )}
 
@@ -295,20 +671,21 @@ export function CctvMonitor({
           </div>
 
           {/* Moldura inferior integrada al tubo CRT */}
-          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 px-1">
-            <div className="flex items-center gap-2 min-w-0">
+          <div className="mt-1.5 sm:mt-2 short-landscape:mt-1 flex flex-wrap items-center justify-between gap-1.5 sm:gap-2 px-1 shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
               <img
                 src={OFFICE_ASSETS.camerasIcon}
                 alt="Logo Circuito Cerrado 1990"
                 referrerPolicy="no-referrer"
-                className="w-6 h-6 sm:w-7 sm:h-7 object-cover shrink-0 opacity-90"
+                className="w-5 h-5 sm:w-7 sm:h-7 short-landscape:w-5 short-landscape:h-5 object-cover shrink-0 opacity-90"
                 style={{
                   maskImage: 'radial-gradient(circle, black 46%, transparent 95%)',
                   WebkitMaskImage: 'radial-gradient(circle, black 46%, transparent 95%)',
                 }}
               />
-              <span className="font-mono-tech text-[10px] font-bold tracking-wider text-[#d9cfb5] truncate">
-                AJ-94 CCTV · MÉXICO D.F.
+              <span className="font-mono-tech text-[9px] sm:text-[10px] font-bold tracking-wider text-[#d9cfb5] truncate">
+                AJ-94 CCTV
+                <span className="hidden sm:inline"> · MÉXICO D.F.</span>
               </span>
             </div>
 
@@ -319,7 +696,7 @@ export function CctvMonitor({
                   soundEngine.playClick(520);
                   setIrMode((m) => (m === 'bw' ? 'green' : 'bw'));
                 }}
-                className="px-2 py-1 bg-[#1e1a15] border border-[#544636] hover:border-amber-400 text-[#e6dec8] font-mono-tech text-[10px] font-bold flex items-center gap-1.5 cursor-pointer"
+                className="min-h-[30px] sm:min-h-[34px] px-2 py-1 bg-[#1e1a15] border border-[#544636] hover:border-amber-400 text-[#e6dec8] font-mono-tech text-[9px] sm:text-[10px] font-bold flex items-center gap-1.5 cursor-pointer"
                 title="Cambiar filtro CRT"
               >
                 <span
@@ -336,7 +713,7 @@ export function CctvMonitor({
                   soundEngine.playClick(610);
                   setZoomFocus((z) => !z);
                 }}
-                className={`px-2 py-1 border font-mono-tech text-[10px] font-bold flex items-center gap-1.5 cursor-pointer ${
+                className={`min-h-[30px] sm:min-h-[34px] px-2 py-1 border font-mono-tech text-[9px] sm:text-[10px] font-bold flex items-center gap-1.5 cursor-pointer ${
                   zoomFocus
                     ? 'bg-amber-500/20 border-amber-400 text-amber-200'
                     : 'bg-[#1e1a15] border-[#544636] hover:border-amber-400 text-[#e6dec8]'
@@ -350,9 +727,9 @@ export function CctvMonitor({
         </section>
 
         {/* ===================== PANEL DERECHO/INFERIOR: AUDIO Y PLANO FNaF 3 REDISEÑADO ===================== */}
-        <aside className="relative lg:w-[390px] shrink-0 border-t-[2px] lg:border-t-0 lg:border-l-[2px] border-[#3d3225] bg-gradient-to-b from-[#171410] to-[#0d0b09] p-2 sm:p-3 flex flex-col gap-2 overflow-hidden">
+        <aside className="relative md:w-[300px] lg:w-[390px] short-landscape:w-[255px] shrink-0 border-t-[2px] md:border-t-0 md:border-l-[2px] short-landscape:border-t-0 short-landscape:border-l-[2px] border-[#3d3225] bg-gradient-to-b from-[#171410] to-[#0d0b09] p-1.5 sm:p-3 short-landscape:p-1.5 flex flex-col gap-1.5 sm:gap-2 overflow-hidden">
           {/* Audio disponible únicamente en ciertas cámaras (sin textos en cámaras no disponibles) */}
-          <div className="min-h-[42px] pb-2 border-b border-[#342a20] shrink-0 flex items-center">
+          <div className="min-h-[38px] sm:min-h-[42px] pb-1.5 sm:pb-2 border-b border-[#342a20] shrink-0 flex items-center">
             {phoneFailed ? (
               <button
                 type="button"
@@ -383,37 +760,45 @@ export function CctvMonitor({
             ) : currentRoom.hasAudio ? (
               <button
                 type="button"
-                disabled={phoneCooldown > 0 || isCamBroken}
+                disabled={infiniteHomerMoans || phoneCooldown > 0 || isCamBroken}
                 onClick={() => {
+                  if (infiniteHomerMoans) return;
+                  triggerFingerTap('audio');
                   onRingPhone(activeCam);
                 }}
                 className={`tactile-keycap-90s w-full py-2 px-3 font-mono-tech text-[11px] sm:text-xs font-bold flex items-center justify-center gap-2 border transition-colors ${
-                  phoneCooldown > 0 || isCamBroken
-                    ? 'bg-[#211d18] text-[#7c7361] border-[#383026] cursor-not-allowed'
-                    : 'bg-[#c9bfa3] text-[#17130d] border-[#73664e] hover:bg-[#e0d6ba] cursor-pointer'
+                  infiniteHomerMoans
+                    ? 'bg-[#2a1f10] text-amber-300/80 border-amber-700/60 cursor-not-allowed'
+                    : phoneCooldown > 0 || isCamBroken
+                      ? 'bg-[#211d18] text-[#7c7361] border-[#383026] cursor-not-allowed'
+                      : 'bg-[#c9bfa3] text-[#17130d] border-[#73664e] hover:bg-[#e0d6ba] cursor-pointer'
                 }`}
               >
                 <PhoneCall className="w-4 h-4 shrink-0" />
                 <span className="truncate">
-                  {phoneCooldown > 0 ? `${Math.ceil(phoneCooldown)}s` : `AUDIO · ${currentRoom.code}`}
+                  {infiniteHomerMoans
+                    ? 'AUDIO DESACTIVADO · BUCLE ACTIVO'
+                    : phoneCooldown > 0
+                      ? `${Math.ceil(phoneCooldown)}s`
+                      : `AUDIO · ${currentRoom.code}`}
                 </span>
               </button>
             ) : null}
           </div>
 
-          <div className="flex items-center justify-between text-[10px] font-mono-tech text-[#cbbda0] px-0.5 shrink-0">
-            <span className="font-bold tracking-wider">PLANO DEL FORO 4 · 10 CÁMARAS</span>
+          <div className="flex items-center justify-between text-[9px] sm:text-[10px] font-mono-tech text-[#cbbda0] px-0.5 shrink-0">
+            <span className="font-bold tracking-wider truncate">PLANO FORO 4 · 12 CÁMARAS</span>
             {radarActive ? (
-              <span className="px-1.5 py-0.5 bg-emerald-950/90 border border-emerald-500/70 text-emerald-300 font-bold tracking-wider">
+              <span className="px-1.5 py-0.5 bg-emerald-950/90 border border-emerald-500/70 text-emerald-300 font-bold tracking-wider shrink-0">
                 RADAR ACTIVO
               </span>
             ) : (
-              <span className="text-[#998d73]">CAM 01/02 → PUERTAS</span>
+              <span className="text-[#998d73] shrink-0 hidden sm:inline">CAM 01/02 + VENT 11/12</span>
             )}
           </div>
 
-          {/* Plano fiel al esquema de referencia (images_11c434e0.png): Fondo negro, ductos grises, salas negras borde blanco, YOU verde */}
-          <div className="relative h-[196px] sm:h-[235px] lg:flex-1 lg:min-h-[290px] bg-black border-[2px] border-[#3d3225] overflow-hidden shadow-[inset_0_0_24px_rgba(0,0,0,0.96)]">
+          {/* Plano fiel al esquema de referencia: Fondo negro, ductos grises, salas negras borde blanco, YOU verde */}
+          <div className="relative h-[196px] sm:h-[228px] md:flex-1 md:min-h-[250px] short-landscape:flex-1 short-landscape:min-h-[150px] bg-black border-[2px] border-[#3d3225] overflow-hidden shadow-[inset_0_0_24px_rgba(0,0,0,0.96)]">
             <svg
               viewBox="0 0 260 220"
               preserveAspectRatio="none"
@@ -428,8 +813,8 @@ export function CctvMonitor({
                 <rect x="46" y="124" width="22" height="24" />
                 {/* Salida superior hacia techo */}
                 <rect x="164" y="24" width="10" height="14" />
-                {/* Ducto derecho bajando desde CAM 10 -> costado -> oficina YOU */}
-                <rect x="200" y="54" width="10" height="140" />
+                {/* Ducto derecho bajando desde CAM 10 -> costado (CAM 11) -> oficina YOU */}
+                <rect x="200" y="42" width="10" height="154" />
                 <rect x="148" y="186" width="62" height="10" />
                 {/* Conexión de ventilación central bajo CAM 05 */}
                 <rect x="98" y="114" width="10" height="20" />
@@ -511,7 +896,7 @@ export function CctvMonitor({
               </g>
             </svg>
 
-            {/* Botones de las 10 Cámaras estilo cajas grises con contorno blanco + flecha puntero */}
+            {/* Botones de las 12 Cámaras (incluyendo CAM 11 y CAM 12 en Ventilación) */}
             {BLUEPRINT_CAMS.map((spec) => {
               const room = CAMERA_ROOMS.find((c) => c.id === spec.id);
               if (!room) return null;
@@ -523,6 +908,11 @@ export function CctvMonitor({
                 enemyRooms.champi === room.id && !deactivatedEnemies.includes('champi');
               const isChampiDanger =
                 isChampiHere && (room.id === 'cam1' || room.id === 'cam2');
+              const isVentDangerHere =
+                (room.id === 'cam11' || room.id === 'cam12') &&
+                (Object.keys(enemyRooms) as TelechobiId[]).some(
+                  (id) => !deactivatedEnemies.includes(id) && enemyRooms[id] === room.id
+                );
               const radarEnemiesHere = radarActive
                 ? (Object.keys(enemyRooms) as TelechobiId[]).filter(
                     (id) =>
@@ -538,6 +928,7 @@ export function CctvMonitor({
                   type="button"
                   onClick={() => {
                     soundEngine.playCameraSwitch();
+                    triggerFingerTap('cam');
                     onSelectCam(room.id);
                   }}
                   style={{
@@ -554,16 +945,20 @@ export function CctvMonitor({
                         ? ' (Champi aquí)'
                         : ''
                   }`}
-                  className={`-translate-x-1/2 -translate-y-1/2 absolute min-w-[44px] sm:min-w-[50px] px-1.5 py-1 border-[1.5px] text-left transition-colors cursor-pointer z-10 ${
+                  className={`-translate-x-1/2 -translate-y-1/2 absolute min-w-[36px] sm:min-w-[44px] lg:min-w-[50px] px-1 sm:px-1.5 py-0.5 sm:py-1 border-[1.5px] text-left transition-colors cursor-pointer z-10 ${
                     selected
                       ? 'bg-[#7f9b11] text-white border-[#f7fee7] z-20 shadow-[0_0_12px_rgba(163,230,53,0.45)]'
                       : broken
                         ? 'bg-[#5c1616] text-red-100 border-red-400 z-10'
                         : isChampiBanishHere
                           ? 'bg-amber-600 text-black border-amber-200 z-20 animate-pulse'
-                          : isChampiHere
-                            ? 'bg-[#3e221d] text-amber-100 border-amber-400 z-20 shadow-[0_0_12px_rgba(251,191,36,0.45)]'
-                            : 'bg-[#45484d] text-white border-white/95 hover:bg-[#5e6369] z-10'
+                          : isVentDangerHere && radarActive
+                            ? 'bg-[#451a12] text-amber-100 border-red-400 z-20 shadow-[0_0_12px_rgba(239,68,68,0.55)]'
+                            : isChampiHere
+                              ? 'bg-[#3e221d] text-amber-100 border-amber-400 z-20 shadow-[0_0_12px_rgba(251,191,36,0.45)]'
+                              : room.isVentCam
+                                ? 'bg-[#252930] text-zinc-100 border-zinc-300/90 border-dashed hover:bg-[#343a44] z-10'
+                                : 'bg-[#45484d] text-white border-white/95 hover:bg-[#5e6369] z-10'
                   }`}
                 >
                   {/* Icono de ubicación de Champi sobre la cámara en el plano */}
@@ -585,7 +980,7 @@ export function CctvMonitor({
                     </span>
                   )}
 
-                  {/* Iconos del Radar (Kit de Supervivencia) sobre la cámara */}
+                  {/* Iconos del Radar (Kit de Supervivencia) sobre la cámara o ventilación */}
                   {radarActive && radarEnemiesHere.length > 0 && (
                     <span className="pointer-events-none absolute -top-2.5 -left-2 flex -space-x-1.5 z-30">
                       {radarEnemiesHere.map((eid) => {
@@ -635,7 +1030,7 @@ export function CctvMonitor({
                   )}
 
                   <div className="flex items-center justify-between gap-1 font-mono-tech text-[8px] sm:text-[9px] font-bold leading-none tracking-tight">
-                    <span>CAM</span>
+                    <span>{room.isVentCam ? 'VENT' : 'CAM'}</span>
                     {isRingingHere && (
                       <PhoneCall className="w-2.5 h-2.5 text-amber-300 animate-pulse shrink-0" />
                     )}
@@ -647,7 +1042,7 @@ export function CctvMonitor({
               );
             })}
 
-            {/* Radar en puertas, pasillo y oficina (alrededor de YOU) */}
+            {/* Radar en puertas, pasillo, oficina y entrada de ventilación (alrededor de YOU) */}
             {radarActive &&
               (
                 [
@@ -685,6 +1080,17 @@ export function CctvMonitor({
                       (id) => enemyRooms[id] === 'office' && !deactivatedEnemies.includes(id)
                     ),
                   },
+                  {
+                    slot: 'vent',
+                    leftPct: 66,
+                    topPct: 86,
+                    ids:
+                      ventThreatEnemy &&
+                      !deactivatedEnemies.includes(ventThreatEnemy) &&
+                      enemyRooms[ventThreatEnemy] === 'cam12'
+                        ? [ventThreatEnemy]
+                        : [],
+                  },
                 ] as const
               ).map(
                 (group) =>
@@ -699,7 +1105,11 @@ export function CctvMonitor({
                         return (
                           <span
                             key={eid}
-                            title={`${emeta.name} cerca de la oficina`}
+                            title={
+                              group.slot === 'vent'
+                                ? `${emeta.name} en la Ventilación`
+                                : `${emeta.name} cerca de la oficina`
+                            }
                             className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 bg-black/95 overflow-hidden flex items-center justify-center animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.85)]"
                             style={{ borderColor: emeta.eyeColor }}
                           >
@@ -716,6 +1126,21 @@ export function CctvMonitor({
                   )
               )}
           </div>
+
+          {fingerTap && (
+            <div
+              key={fingerTap.key}
+              className={`pointer-events-none absolute right-6 bottom-6 z-40 ${
+                fingerTap.kind === 'audio' ? 'animate-cctv-finger-audio' : 'animate-cctv-finger-cam'
+              }`}
+            >
+              <svg width="72" height="72" viewBox="0 0 72 72" aria-hidden="true">
+                <ellipse cx="42" cy="48" rx="18" ry="20" fill="#c79e7a" stroke="#18120c" strokeWidth="3" />
+                <rect x="22" y="10" width="16" height="36" rx="8" fill="#d4ad89" stroke="#18120c" strokeWidth="3" />
+                <ellipse cx="30" cy="18" rx="5.5" ry="5" fill="#e7cab0" opacity="0.7" />
+              </svg>
+            </div>
+          )}
         </aside>
       </div>
     </div>

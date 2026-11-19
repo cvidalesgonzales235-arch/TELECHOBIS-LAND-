@@ -5,6 +5,7 @@ import {
   getContinueNight,
   recordPlayerDeath,
   saveNightVictory,
+  saveSecretNight2Victory,
   signInWithGoogle,
   signOutPlayer,
   subscribeAuth,
@@ -47,6 +48,7 @@ export default function App() {
   const [killer, setKiller] = useState<TelechobiId>('ton');
   const [killerSource, setKillerSource] = useState<JumpscareSource>('door');
   const [lastPowerRemaining, setLastPowerRemaining] = useState<number>(0);
+  const [localSecretUnlocked, setLocalSecretUnlocked] = useState(false);
 
   // Subscribe to Firebase Authentication
   useEffect(() => {
@@ -72,6 +74,7 @@ export default function App() {
         setSaveLoading(false);
         if (
           save &&
+          !save.night7Completed &&
           (save.night6Completed || save.completedNights >= 6 || save.extrasUnlocked) &&
           save.currentNight === 6
         ) {
@@ -86,6 +89,15 @@ export default function App() {
     );
     return () => unsub();
   }, [user]);
+
+  // Keep "Five Nights at Candy's OST - Menu Theme" playing across Main Menu and Extras (all submenus)
+  useEffect(() => {
+    if (screen === 'MENU' || screen === 'EXTRAS') {
+      soundEngine.startMenuMusic();
+    } else {
+      soundEngine.stopMenuMusic();
+    }
+  }, [screen]);
 
   const handleToggleMute = useCallback(() => {
     setMuted((prev) => {
@@ -133,6 +145,7 @@ export default function App() {
       await ensureNewGameSave(activeUser);
       setActiveLaunchConfig(undefined);
       setActiveNight(1);
+      soundEngine.stopMenuMusic();
       soundEngine.stopAmbience();
       setScreen('NEWSPAPER');
     } catch {
@@ -143,25 +156,28 @@ export default function App() {
   const isProgressionUnlocked = Boolean(
     user && (playerSave?.extrasUnlocked || playerSave?.night7Completed)
   );
+  const isSecretUnlocked = Boolean(playerSave?.secretNight2Completed || localSecretUnlocked);
 
   const handleContinue = useCallback(() => {
     if (!user || !playerSave) return;
     const nightToPlay = getContinueNight(playerSave);
-    if (nightToPlay === 7) {
-      setContinueNightModal(7);
+    if (nightToPlay === 7 || isProgressionUnlocked) {
+      setContinueNightModal(nightToPlay);
       return;
     }
     setActiveLaunchConfig(undefined);
     setActiveNight(nightToPlay);
+    soundEngine.stopMenuMusic();
     soundEngine.stopAmbience();
     setScreen('NIGHT_INTRO');
-  }, [user, playerSave]);
+  }, [user, playerSave, isProgressionUnlocked]);
 
   const handleLaunchConfig = useCallback((config: CustomNightLaunchConfig) => {
     setShowNightSelector(false);
     setContinueNightModal(null);
     setActiveLaunchConfig(config);
     setActiveNight(config.night);
+    soundEngine.stopMenuMusic();
     soundEngine.stopAmbience();
     setScreen('NIGHT_INTRO');
   }, []);
@@ -169,6 +185,7 @@ export default function App() {
   const handleOpenExtras = useCallback(() => {
     if (!isProgressionUnlocked) return;
     soundEngine.stopAmbience();
+    soundEngine.startMenuMusic();
     setScreen('EXTRAS');
   }, [isProgressionUnlocked]);
 
@@ -185,16 +202,39 @@ export default function App() {
         activeLaunchConfig?.cheats &&
           Object.values(activeLaunchConfig.cheats).some(Boolean)
       );
-      if (
-        user &&
-        !activeLaunchConfig?.isCustomAI &&
-        !activeLaunchConfig?.isDefinitiveNight &&
-        !cheatsUsed
-      ) {
-        try {
-          await saveNightVictory(user, activeNight, remainingPower);
-        } catch (err) {
-          console.error('Failed to save night victory:', err);
+      const isDefinitive = Boolean(activeLaunchConfig?.isDefinitiveNight);
+      const isSecretBrainrot = Boolean(activeLaunchConfig?.isSecretBrainrotNight);
+      const fromSelector = Boolean(activeLaunchConfig?.fromNightSelector);
+      const isCustom = Boolean(activeLaunchConfig?.isCustomAI);
+
+      if (isSecretBrainrot) {
+        setLocalSecretUnlocked(true);
+        if (user) {
+          try {
+            await saveSecretNight2Victory(user);
+          } catch (err) {
+            console.error('Failed to save secret brainrot night victory:', err);
+          }
+        }
+        return;
+      }
+
+      if (user && !isDefinitive) {
+        if (fromSelector) {
+          try {
+            await saveNightVictory(user, activeNight, remainingPower, {
+              keepSelectedNight: true,
+              allowCheatsUpdate: cheatsUsed || isCustom,
+            });
+          } catch (err) {
+            console.error('Failed to save selected night victory:', err);
+          }
+        } else if (!isCustom && !cheatsUsed) {
+          try {
+            await saveNightVictory(user, activeNight, remainingPower);
+          } catch (err) {
+            console.error('Failed to save night victory:', err);
+          }
         }
       }
     },
@@ -252,6 +292,7 @@ export default function App() {
         />
         {showNightSelector && isProgressionUnlocked && (
           <NightSetupModal
+            secretUnlocked={isSecretUnlocked}
             onClose={() => setShowNightSelector(false)}
             onLaunch={handleLaunchConfig}
           />
@@ -260,6 +301,7 @@ export default function App() {
           <NightSetupModal
             initialNight={continueNightModal}
             allowPickOtherNight={isProgressionUnlocked}
+            secretUnlocked={isSecretUnlocked}
             onClose={() => setContinueNightModal(null)}
             onLaunch={handleLaunchConfig}
           />
@@ -327,9 +369,11 @@ export default function App() {
       <VictoryScreen
         night={activeNight}
         remainingPower={lastPowerRemaining}
-        isNight6={!activeLaunchConfig?.isDefinitiveNight && activeNight === 6}
-        isNight7={!activeLaunchConfig?.isDefinitiveNight && activeNight === 7}
+        isNight6={!activeLaunchConfig?.isDefinitiveNight && !activeLaunchConfig?.isSecretBrainrotNight && activeNight === 6}
+        isNight7={!activeLaunchConfig?.isDefinitiveNight && !activeLaunchConfig?.isSecretBrainrotNight && activeNight === 7}
         isDefinitiveNight={Boolean(activeLaunchConfig?.isDefinitiveNight)}
+        isSecretBrainrotNight={Boolean(activeLaunchConfig?.isSecretBrainrotNight)}
+        fromNightSelector={Boolean(activeLaunchConfig?.fromNightSelector)}
         onContinue={handleVictoryContinue}
       />
     );
@@ -338,6 +382,7 @@ export default function App() {
   if (screen === 'EXTRAS') {
     return (
       <ExtrasModal
+        secretUnlocked={isSecretUnlocked}
         onBack={() => setScreen('MENU')}
         onLaunchConfig={handleLaunchConfig}
       />

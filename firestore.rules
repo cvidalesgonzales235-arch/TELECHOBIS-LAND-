@@ -52,6 +52,7 @@ service cloud.firestore {
         'night6Completed',
         'night7Completed',
         'extrasUnlocked',
+        'secretNight2Completed',
         'totalDeaths',
         'totalHoursSurvived',
         'bestNightPowerRemaining',
@@ -80,6 +81,10 @@ service cloud.firestore {
       )
       && data.extrasUnlocked is bool
       && (!data.extrasUnlocked || data.night6Completed)
+      && (
+        !('secretNight2Completed' in data.keys())
+        || data.secretNight2Completed is bool
+      )
       && data.totalDeaths is int
       && data.totalDeaths >= 0
       && data.totalDeaths <= 100000
@@ -108,6 +113,7 @@ service cloud.firestore {
         && incoming().night6Completed == false
         && (!('night7Completed' in incoming().keys()) || incoming().night7Completed == false)
         && incoming().extrasUnlocked == false
+        && (!('secretNight2Completed' in incoming().keys()) || incoming().secretNight2Completed == false)
         && incoming().totalDeaths == 0
         && incoming().totalHoursSurvived == 0
         && incoming().bestNightPowerRemaining == 0;
@@ -163,6 +169,16 @@ service cloud.firestore {
               'displayName',
               'updatedAt'
             ])
+          )
+          ||
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'secretNight2Completed',
+              'totalHoursSurvived',
+              'updatedAt'
+            ])
+            && incoming().secretNight2Completed == true
+            && incoming().totalHoursSurvived >= existing().totalHoursSurvived
           )
         );
 

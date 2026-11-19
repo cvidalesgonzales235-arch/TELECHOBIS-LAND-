@@ -45,9 +45,10 @@ export function MainMenu({
   const [staticBurst, setStaticBurst] = useState<number>(0.24);
   const [hoveredIdx, setHoveredIdx] = useState<number>(0);
 
-  // Authentic FNAF-style erratic animatronic twitching + VHS static spikes
+  // Authentic FNAF-style erratic animatronic twitching + VHS static spikes + Menu OST
   useEffect(() => {
     soundEngine.startAmbience('menu');
+    soundEngine.startMenuMusic();
     soundEngine.preloadNightSfx();
 
     let timerId = 0;
@@ -100,22 +101,22 @@ export function MainMenu({
   );
 
   return (
-    <div className="relative w-screen h-screen bg-[#040405] overflow-hidden flex flex-col justify-between">
-      <CobwebCorner position="top-left" className="w-24 h-24 opacity-45 z-20" />
-      <CobwebCorner position="bottom-right" className="w-24 h-24 opacity-40 z-20" />
+    <div className="relative w-full min-h-dvh h-dvh bg-[#040405] overflow-y-auto overflow-x-hidden flex flex-col justify-between">
+      <CobwebCorner position="top-left" className="w-16 sm:w-24 h-16 sm:h-24 opacity-45 z-20" />
+      <CobwebCorner position="bottom-right" className="w-16 sm:w-24 h-16 sm:h-24 opacity-40 z-20" />
 
       {/* Right-Side Looming Animatronics Portrait (FNAF 1 menu composition with all 4 extracted Telechobis) */}
-      <div className="absolute inset-y-0 right-0 w-[68%] flex items-center justify-end pointer-events-none">
+      <div className="absolute inset-y-0 right-0 w-full sm:w-[75%] md:w-[68%] flex items-center justify-end pointer-events-none">
         {/* Faint shadowed silhouettes of Toso, Nita & Tis lurking behind Ton */}
-        <div className="absolute inset-y-0 right-10 w-[640px] flex items-end justify-between opacity-25">
-          <TelechobiSprite id="toso" variant="menu" className="w-48 h-[72vh]" />
-          <TelechobiSprite id="nita" variant="menu" className="w-48 h-[76vh]" />
-          <TelechobiSprite id="tis" variant="menu" className="w-48 h-[70vh]" />
+        <div className="hidden sm:flex absolute inset-y-0 right-10 w-[440px] lg:w-[640px] items-end justify-between opacity-25">
+          <TelechobiSprite id="toso" variant="menu" className="w-36 lg:w-48 h-[68dvh] lg:h-[72dvh]" />
+          <TelechobiSprite id="nita" variant="menu" className="w-36 lg:w-48 h-[72dvh] lg:h-[76dvh]" />
+          <TelechobiSprite id="tis" variant="menu" className="w-36 lg:w-48 h-[66dvh] lg:h-[70dvh]" />
         </div>
 
         {/* Primary Looming Twitching Bust on the Right */}
         <div
-          className={`relative w-[500px] lg:w-[660px] h-[94vh] max-h-[820px] transition-transform duration-75 ${
+          className={`relative w-[78vw] max-w-[380px] sm:max-w-none sm:w-[440px] md:w-[500px] lg:w-[660px] h-[78dvh] sm:h-[90dvh] max-h-[820px] opacity-60 sm:opacity-100 transition-transform duration-75 ${
             twitchState === 1 ? 'translate-x-2 -translate-y-1 scale-[1.03]' : ''
           }`}
         >
@@ -131,7 +132,7 @@ export function MainMenu({
           className="absolute inset-0"
           style={{
             background:
-              'linear-gradient(90deg, #040405 14%, rgba(4,4,5,0.72) 48%, rgba(4,4,5,0.22) 82%, rgba(4,4,5,0.85) 100%)',
+              'linear-gradient(90deg, #040405 16%, rgba(4,4,5,0.78) 48%, rgba(4,4,5,0.28) 82%, rgba(4,4,5,0.85) 100%)',
           }}
         />
       </div>
@@ -214,19 +215,19 @@ export function MainMenu({
       </header>
 
       {/* Main Left Menu Column (FNAF 1 layout) */}
-      <main className="relative z-20 px-8 md:px-14 my-auto max-w-xl">
-        <div className="mb-10">
-          <h1 className="font-display text-5xl sm:text-7xl font-bold tracking-tight text-[#ede5d0] leading-[0.94] drop-shadow-[0_2px_18px_rgba(255,255,255,0.12)]">
+      <main className="relative z-20 px-5 sm:px-8 md:px-14 py-4 sm:py-6 short-landscape:py-2 my-auto max-w-xl">
+        <div className="mb-5 sm:mb-8 md:mb-10 short-landscape:mb-3">
+          <h1 className="font-display text-4xl sm:text-6xl md:text-7xl short-landscape:text-4xl font-bold tracking-tight text-[#ede5d0] leading-[0.94] drop-shadow-[0_2px_18px_rgba(255,255,255,0.12)]">
             TELECHOBIS
             <br />
             LAND
           </h1>
-          <p className="mt-3 text-sm font-mono-tech text-[#b4aa92] tracking-wide">
+          <p className="mt-2 sm:mt-3 text-xs sm:text-sm font-mono-tech text-[#b4aa92] tracking-wide">
             Vigilancia Nocturna · Estudios Abandonados
           </p>
         </div>
 
-        <nav className="flex flex-col items-start gap-3" aria-label="Menú principal">
+        <nav className="flex flex-col items-start gap-1.5 sm:gap-2.5 md:gap-3 short-landscape:gap-1" aria-label="Menú principal">
           {/* Option 1: Nuevo Juego */}
           <button
             type="button"
@@ -239,10 +240,10 @@ export function MainMenu({
               soundEngine.playClick(820);
               onNewGame();
             }}
-            className="group flex items-center gap-3 py-1.5 text-left font-display text-3xl sm:text-4xl tracking-wide text-zinc-100 hover:text-white transition-colors cursor-pointer focus-visible:outline-none focus-visible:text-amber-300"
+            className="group flex items-center gap-2.5 sm:gap-3 min-h-[44px] short-landscape:min-h-[36px] py-1 text-left font-display text-2xl sm:text-3xl md:text-4xl short-landscape:text-2xl tracking-wide text-zinc-100 hover:text-white transition-colors cursor-pointer focus-visible:outline-none focus-visible:text-amber-300"
           >
             <span
-              className={`font-mono-tech text-2xl transition-opacity ${
+              className={`font-mono-tech text-lg sm:text-2xl transition-opacity ${
                 hoveredIdx === 0 ? 'opacity-100 text-amber-400' : 'opacity-0'
               }`}
             >
@@ -267,14 +268,14 @@ export function MainMenu({
               soundEngine.playClick(820);
               onContinue();
             }}
-            className={`group flex items-center gap-3 py-1.5 text-left font-display text-3xl sm:text-4xl tracking-wide transition-colors ${
+            className={`group flex items-center gap-2.5 sm:gap-3 min-h-[44px] short-landscape:min-h-[36px] py-1 text-left font-display text-2xl sm:text-3xl md:text-4xl short-landscape:text-2xl tracking-wide transition-colors ${
               canContinue
                 ? 'text-zinc-100 hover:text-white cursor-pointer'
                 : 'text-zinc-400/60 cursor-not-allowed'
             }`}
           >
             <span
-              className={`font-mono-tech text-2xl transition-opacity ${
+              className={`font-mono-tech text-lg sm:text-2xl transition-opacity ${
                 canContinue && hoveredIdx === 1 ? 'opacity-100 text-amber-400' : 'opacity-0'
               }`}
             >
@@ -282,7 +283,7 @@ export function MainMenu({
             </span>
             <span>Continuar</span>
             {canContinue && playerSave && (
-              <span className="ml-2 text-sm font-mono-tech text-amber-400/90 tracking-normal">
+              <span className="ml-1.5 sm:ml-2 text-xs sm:text-sm font-mono-tech text-amber-400/90 tracking-normal">
                 Noche {getContinueNight(playerSave)}
               </span>
             )}
@@ -304,14 +305,14 @@ export function MainMenu({
               soundEngine.playClick(820);
               onSelectNight();
             }}
-            className={`group flex items-center gap-3 py-1.5 text-left font-display text-3xl sm:text-4xl tracking-wide transition-colors ${
+            className={`group flex items-center gap-2.5 sm:gap-3 min-h-[44px] short-landscape:min-h-[36px] py-1 text-left font-display text-2xl sm:text-3xl md:text-4xl short-landscape:text-2xl tracking-wide transition-colors ${
               progressionUnlocked
                 ? 'text-zinc-100 hover:text-amber-200 cursor-pointer focus-visible:outline-none focus-visible:text-amber-300'
                 : 'text-zinc-400/60 cursor-not-allowed'
             }`}
           >
             <span
-              className={`font-mono-tech text-2xl transition-opacity ${
+              className={`font-mono-tech text-lg sm:text-2xl transition-opacity ${
                 progressionUnlocked && hoveredIdx === 2 ? 'opacity-100 text-amber-400' : 'opacity-0'
               }`}
             >
@@ -320,7 +321,7 @@ export function MainMenu({
             <span className="inline-flex items-center gap-2.5">
               Seleccionar Noche
               {!progressionUnlocked && (
-                <Lock className="w-5 h-5 text-zinc-400/65" aria-hidden="true" />
+                <Lock className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-400/65" aria-hidden="true" />
               )}
             </span>
           </button>
@@ -341,14 +342,14 @@ export function MainMenu({
               soundEngine.playClick(820);
               onOpenExtras();
             }}
-            className={`group flex items-center gap-3 py-1.5 text-left font-display text-3xl sm:text-4xl tracking-wide transition-colors ${
+            className={`group flex items-center gap-2.5 sm:gap-3 min-h-[44px] short-landscape:min-h-[36px] py-1 text-left font-display text-2xl sm:text-3xl md:text-4xl short-landscape:text-2xl tracking-wide transition-colors ${
               progressionUnlocked
                 ? 'text-zinc-100 hover:text-amber-300 cursor-pointer'
                 : 'text-zinc-400/60 cursor-not-allowed'
             }`}
           >
             <span
-              className={`font-mono-tech text-2xl transition-opacity ${
+              className={`font-mono-tech text-lg sm:text-2xl transition-opacity ${
                 progressionUnlocked && hoveredIdx === 3 ? 'opacity-100 text-amber-400' : 'opacity-0'
               }`}
             >
@@ -357,37 +358,23 @@ export function MainMenu({
             <span className="inline-flex items-center gap-2.5">
               Extras
               {!progressionUnlocked && (
-                <Lock className="w-5 h-5 text-zinc-400/65" aria-hidden="true" />
+                <Lock className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-400/65" aria-hidden="true" />
               )}
             </span>
           </button>
         </nav>
 
         {!user && !authLoading && (
-          <p className="mt-6 text-xs font-mono-tech text-zinc-400 max-w-md leading-relaxed">
+          <p className="mt-4 sm:mt-6 text-[11px] sm:text-xs font-mono-tech text-zinc-400 max-w-md leading-relaxed">
             Conecta tu cuenta de Google para guardar tus noches superadas en Firebase y habilitar
             Continuar, Seleccionar Noche y Extras.
           </p>
         )}
 
         {authError && (
-          <p className="mt-4 text-xs font-mono-tech text-red-400 max-w-md">{authError}</p>
+          <p className="mt-3 sm:mt-4 text-xs font-mono-tech text-red-400 max-w-md">{authError}</p>
         )}
       </main>
-
-      {/* Bottom Hint & Save Summary */}
-      <footer className="relative z-20 px-8 md:px-14 pb-6 flex flex-wrap items-center justify-between gap-4 text-xs font-mono-tech text-zinc-500">
-        <div>
-          Controles: A / D Girar · Espacio / F Linterna · M Máscara · W / S Monitor
-        </div>
-        <div>
-          {playerSave
-            ? `Noches superadas: ${playerSave.completedNights}/7 · Desbloqueo: ${
-                progressionUnlocked ? 'Activo' : 'Completa Noche 7'
-              }`
-            : '© 1999 Estudios Ajusco · Señal de Prueba'}
-        </div>
-      </footer>
     </div>
   );
 }

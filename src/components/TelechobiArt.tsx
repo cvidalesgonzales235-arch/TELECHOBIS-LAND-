@@ -2,7 +2,14 @@ import { JumpscareSource, OFFICE_ASSETS, TELECHOBIS, TelechobiId } from '../type
 
 interface TelechobiSpriteProps {
   id: TelechobiId;
-  variant?: 'menu' | 'door' | 'hallway' | 'hall_confront' | 'camera' | 'jumpscare';
+  variant?:
+    | 'menu'
+    | 'door'
+    | 'hallway'
+    | 'hall_confront'
+    | 'camera'
+    | 'jumpscare'
+    | 'second_office';
   jumpscareSource?: JumpscareSource;
   twitchState?: number; // 0 = normal eerie stare, 1 = head jerk, 2 = endo-invert glitch, 3 = darkened dead sockets
   className?: string;
@@ -20,9 +27,10 @@ export function TelechobiSprite({
   const isGlitch = twitchState === 2;
   const isDarkEyes = twitchState === 3;
   const isNon = id === 'non';
+  const isFullContain = isNon || id === 'glamrock' || id === 'tralalero';
 
   // Per-variant organic lighting & color-preserving shadows (no black/white rectangular backdrops)
-  let imgClass = isNon
+  let imgClass = isFullContain
     ? 'w-full h-full object-contain object-bottom select-none'
     : 'w-full h-full object-contain select-none';
   let filterStyle = 'drop-shadow(0 12px 24px rgba(0,0,0,0.92))';
@@ -30,7 +38,7 @@ export function TelechobiSprite({
   let extraWrapClass = '';
 
   if (variant === 'menu') {
-    imgClass = isNon
+    imgClass = isFullContain
       ? 'w-full h-full object-contain object-bottom select-none'
       : 'w-full h-full object-cover object-top select-none';
     filterStyle = isGlitch
@@ -45,8 +53,15 @@ export function TelechobiSprite({
       : isJerk
         ? 'rotate(-5deg) scale(1.06) translate(10px, -6px)'
         : 'scale(1.02)';
+  } else if (variant === 'second_office') {
+    imgClass = 'w-full h-full object-contain object-bottom select-none';
+    filterStyle =
+      id === 'glamrock'
+        ? 'contrast(1.16) brightness(0.96) drop-shadow(0 18px 34px rgba(251,191,36,0.35)) drop-shadow(0 14px 26px rgba(0,0,0,0.96))'
+        : 'contrast(1.18) brightness(0.92) drop-shadow(0 16px 30px rgba(0,0,0,0.96))';
+    transformStyle = 'scale(1)';
   } else if (variant === 'door') {
-    imgClass = isNon
+    imgClass = isFullContain
       ? 'w-full h-full object-contain object-bottom select-none'
       : 'w-full h-full object-cover object-top select-none';
     filterStyle =
@@ -62,7 +77,7 @@ export function TelechobiSprite({
       transformStyle = 'scale(0.84)';
     }
   } else if (variant === 'hall_confront') {
-    imgClass = isNon
+    imgClass = isFullContain
       ? 'w-full h-full object-contain object-bottom select-none'
       : 'w-full h-full object-cover object-top select-none';
     filterStyle =
@@ -80,8 +95,8 @@ export function TelechobiSprite({
       transformStyle = 'scale(0.82)';
     }
   } else if (variant === 'jumpscare') {
-    imgClass = isNon
-      ? 'w-full h-full object-contain object-bottom select-none'
+    imgClass = isFullContain
+      ? 'w-full h-full object-contain object-center select-none'
       : 'w-full h-full object-cover object-top select-none';
     if (jumpscareSource === 'vent') {
       filterStyle = 'contrast(1.52) brightness(0.92) saturate(1.02) drop-shadow(0 0 40px rgba(0,0,0,1))';
@@ -103,7 +118,10 @@ export function TelechobiSprite({
       aria-label={`Animatrónico ${meta.name}`}
     >
       {/* Ground contact ellipse strictly beneath feet/torso (no dark rectangle over silhouette) */}
-      {(variant === 'hallway' || variant === 'camera' || (isNon && variant === 'door')) && (
+      {(variant === 'hallway' ||
+        variant === 'camera' ||
+        variant === 'second_office' ||
+        (isNon && variant === 'door')) && (
         <div
           className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-0 w-[68%] h-4 rounded-full opacity-75"
           style={{

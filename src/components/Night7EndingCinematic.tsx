@@ -101,7 +101,7 @@ export function Night7EndingCinematic({
 
   if (phase === '6am') {
     return (
-      <div className="relative w-screen h-screen bg-[#050403] flex flex-col items-center justify-center p-6 text-center overflow-hidden">
+      <div className="relative w-full h-dvh bg-[#050403] flex flex-col items-center justify-center p-4 sm:p-6 text-center overflow-hidden">
         <div
           className="pointer-events-none absolute inset-0 transition-opacity duration-1000"
           style={{
@@ -111,15 +111,15 @@ export function Night7EndingCinematic({
           }}
         />
         <div className="absolute inset-0 crt-scanlines opacity-55 pointer-events-none" />
-        <div className="relative z-10 space-y-4">
+        <div className="relative z-10 space-y-3 sm:space-y-4">
           <div
-            className={`font-display text-7xl sm:text-8xl font-bold tracking-wider transition-all duration-500 ${
+            className={`font-display text-6xl sm:text-8xl font-bold tracking-wider transition-all duration-500 ${
               hourLabel === '6:00 AM' ? 'text-amber-300 scale-105' : 'text-zinc-400 scale-95'
             }`}
           >
             {hourLabel}
           </div>
-          <p className="font-mono-tech text-xs sm:text-sm tracking-[0.26em] text-zinc-300 uppercase">
+          <p className="font-mono-tech text-[11px] sm:text-sm tracking-[0.18em] sm:tracking-[0.26em] text-zinc-300 uppercase">
             NOCHE 7 SUPERADA · FIN DEL TURNO EN FORO 4
           </p>
         </div>
@@ -130,7 +130,11 @@ export function Night7EndingCinematic({
   const fireIntensity = phase === 'ignite' ? 0.55 : phase === 'burning' ? 1 : 0.72;
 
   return (
-    <div className="relative w-screen h-screen bg-[#070403] overflow-hidden flex flex-col justify-between select-none">
+    <div
+      className={`relative w-full h-dvh bg-[#070403] overflow-x-hidden flex flex-col justify-between select-none ${
+        phase === 'epilogue' ? 'overflow-y-auto' : 'overflow-hidden'
+      }`}
+    >
       {/* Studio backdrop transitioning into roaring blaze and dawn sky */}
       <img
         src={OFFICE_ASSETS.officeBg}
@@ -182,11 +186,11 @@ export function Night7EndingCinematic({
 
       {/* Scene 1: Protagonist igniting fuel with gasoline can & match */}
       {phase === 'ignite' && (
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-end justify-center pb-24 sm:pb-28">
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-end justify-center pb-20 sm:pb-28 short-landscape:pb-14">
           <div className="relative flex flex-col items-center">
             {/* Match spark flash */}
             <div
-              className="w-24 h-24 rounded-full animate-pulse mb-2"
+              className="w-16 h-16 sm:w-24 sm:h-24 short-landscape:w-12 short-landscape:h-12 rounded-full animate-pulse mb-1 sm:mb-2"
               style={{
                 background:
                   'radial-gradient(circle, rgba(254,240,138,0.95) 0%, rgba(249,115,22,0.6) 45%, transparent 75%)',
@@ -196,7 +200,7 @@ export function Night7EndingCinematic({
             <svg
               viewBox="0 0 260 210"
               aria-hidden="true"
-              className="w-64 sm:w-80 h-auto drop-shadow-[0_0_28px_rgba(249,115,22,0.65)]"
+              className="w-52 sm:w-80 short-landscape:w-44 h-auto drop-shadow-[0_0_28px_rgba(249,115,22,0.65)]"
             >
               {/* Protagonist silhouette */}
               <circle cx="110" cy="48" r="20" fill="#0c0a09" stroke="#f59e0b" strokeWidth="1.5" />
@@ -253,7 +257,7 @@ export function Night7EndingCinematic({
                 src={TELECHOBIS[suit.id].spritePath}
                 alt={TELECHOBIS[suit.id].name}
                 referrerPolicy="no-referrer"
-                className="h-44 sm:h-60 w-auto object-contain"
+                className="h-28 sm:h-44 md:h-60 short-landscape:h-32 w-auto object-contain"
               />
             </div>
           ))}
@@ -266,22 +270,22 @@ export function Night7EndingCinematic({
           {FREED_SOULS.map((soul) => (
             <div
               key={soul.id}
-              className="absolute bottom-24 -translate-x-1/2 flex flex-col items-center gap-1.5 animate-ending-soul"
+              className="absolute bottom-24 -translate-x-1/2 flex flex-col items-center gap-1 sm:gap-1.5 animate-ending-soul"
               style={{
-                left: `${soul.leftPct}%`,
+                left: `${Math.min(84, Math.max(16, soul.leftPct))}%`,
                 animationDelay: `${soul.delaySec}s`,
               }}
             >
               <div
-                className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center"
+                className="w-7 h-7 sm:w-11 sm:h-11 rounded-full flex items-center justify-center"
                 style={{
                   background: `radial-gradient(circle, #ffffff 10%, ${soul.color} 55%, transparent 78%)`,
                   boxShadow: `0 0 28px 10px ${soul.glow}`,
                 }}
               >
-                <Sparkles className="w-4 h-4 text-white/90" />
+                <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/90" />
               </div>
-              <span className="px-2 py-0.5 bg-black/65 border border-white/20 font-mono-tech text-[9px] sm:text-[10px] text-zinc-100 whitespace-nowrap">
+              <span className="px-1.5 sm:px-2 py-0.5 bg-black/75 border border-white/20 font-mono-tech text-[8px] sm:text-[10px] text-zinc-100 whitespace-nowrap max-w-[100px] sm:max-w-none truncate">
                 {soul.label}
               </span>
             </div>
@@ -292,7 +296,7 @@ export function Night7EndingCinematic({
       {/* Layered animated wall of fire along bottom */}
       {phase !== 'epilogue' && (
         <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-44 sm:h-56 z-15 transition-opacity duration-1000"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-36 sm:h-52 md:h-56 short-landscape:h-28 z-15 transition-opacity duration-1000"
           style={{ opacity: fireIntensity }}
         >
           <svg
@@ -332,9 +336,9 @@ export function Night7EndingCinematic({
       <div className="pointer-events-none absolute inset-0 crt-vignette z-20" />
 
       {/* Top VHS Stamp + Skip Button */}
-      <header className="relative z-30 flex items-center justify-between px-5 sm:px-8 pt-5">
-        <div className="inline-flex items-center gap-2 bg-black/75 border border-amber-500/40 px-3 py-1 font-mono-tech text-[11px] text-amber-200">
-          <Flame className="w-3.5 h-3.5 text-orange-400" />
+      <header className="relative z-30 flex flex-wrap items-center justify-between gap-2 px-3 sm:px-8 pt-3 sm:pt-5">
+        <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-black/75 border border-amber-500/40 px-2.5 sm:px-3 py-1 font-mono-tech text-[10px] sm:text-[11px] text-amber-200">
+          <Flame className="w-3.5 h-3.5 text-orange-400 shrink-0" />
           <span>CINTA FINAL · 1999/11/15 · 06:00 AM</span>
         </div>
 
@@ -342,7 +346,7 @@ export function Night7EndingCinematic({
           <button
             type="button"
             onClick={handleSkip}
-            className="px-3.5 py-1.5 bg-black/80 border border-[#5c4838] hover:border-amber-400 text-[#e5dcc8] font-mono-tech text-xs inline-flex items-center gap-1.5 cursor-pointer"
+            className="min-h-[40px] sm:min-h-[44px] px-3 sm:px-3.5 py-1.5 bg-black/80 border border-[#5c4838] hover:border-amber-400 text-[#e5dcc8] font-mono-tech text-[11px] sm:text-xs inline-flex items-center gap-1.5 cursor-pointer"
           >
             <SkipForward className="w-3.5 h-3.5" />
             <span>Saltar Cinemática</span>
@@ -352,41 +356,41 @@ export function Night7EndingCinematic({
 
       {/* Center Epilogue Card (Phase 4) */}
       {phase === 'epilogue' ? (
-        <main className="relative z-30 my-auto px-4 sm:px-6 flex justify-center">
-          <div className="max-w-xl w-full rust-panel-90s border-2 border-amber-500/50 p-6 sm:p-8 text-center space-y-5 shadow-[0_24px_80px_rgba(0,0,0,0.96)]">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-orange-950/75 border border-orange-500/60 font-mono-tech text-[11px] text-amber-200">
-              <Flame className="w-3.5 h-3.5 text-orange-400" />
+        <main className="relative z-30 my-auto px-3 sm:px-6 py-3 flex justify-center">
+          <div className="max-w-xl w-full rust-panel-90s border-2 border-amber-500/50 p-4 sm:p-8 text-center space-y-3.5 sm:space-y-5 shadow-[0_24px_80px_rgba(0,0,0,0.96)]">
+            <div className="inline-flex items-center gap-2 px-2.5 sm:px-3 py-1 bg-orange-950/75 border border-orange-500/60 font-mono-tech text-[10px] sm:text-[11px] text-amber-200">
+              <Flame className="w-3.5 h-3.5 text-orange-400 shrink-0" />
               <span>FORO 4 REDUCIDO A CENIZAS · ALMAS LIBERADAS</span>
             </div>
 
-            <h2 className="font-display text-4xl sm:text-5xl text-[#f3ebd5] tracking-wider leading-none">
+            <h2 className="font-display text-3xl sm:text-5xl text-[#f3ebd5] tracking-wider leading-none">
               FIN DE TELECHOBIS LAND
             </h2>
 
-            <p className="font-mono-tech text-xs text-amber-300 tracking-widest">
+            <p className="font-mono-tech text-[11px] sm:text-xs text-amber-300 tracking-widest">
               NOCHE 7 COMPLETADA · BATERÍA RESTANTE: {remainingPower.toFixed(0)}%
             </p>
 
-            <div className="border border-red-500/45 bg-black/65 p-4 text-left space-y-2">
+            <div className="border border-red-500/45 bg-black/65 p-3.5 sm:p-4 text-left space-y-2">
               <p className="text-xs sm:text-sm text-[#e5dcc8] leading-relaxed">
                 El fuego consumió las botargas selladas, las cintas ocultas y el pacto de{' '}
                 <strong className="text-amber-300">Alonso Córdova</strong>. Las almas de{' '}
                 <strong className="text-amber-200">Omar, Rocío, Iris, Saidda y Beatriz</strong>{' '}
                 quedaron libres entre el humo del amanecer.
               </p>
-              <p className="text-xs text-emerald-300 font-mono-tech">
+              <p className="text-[11px] sm:text-xs text-emerald-300 font-mono-tech">
                 ✓ Extras, Seleccionar Noche (1–7) y Personalized Night (8 enemigos) desbloqueados.
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 pt-1">
+            <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 pt-1">
               <button
                 type="button"
                 onClick={() => {
                   soundEngine.playClick(640);
                   setReplayKey((k) => k + 1);
                 }}
-                className="px-4 py-3 bg-[#1d1a16] border border-[#5c4838] text-[#e5dcc8] hover:border-amber-400 font-mono-tech text-xs inline-flex items-center justify-center gap-2 cursor-pointer"
+                className="min-h-[44px] px-4 py-3 bg-[#1d1a16] border border-[#5c4838] text-[#e5dcc8] hover:border-amber-400 font-mono-tech text-xs inline-flex items-center justify-center gap-2 cursor-pointer"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>Ver Cinemática de Nuevo</span>
@@ -399,7 +403,7 @@ export function Night7EndingCinematic({
                   soundEngine.stopEndingFireSound();
                   onContinue();
                 }}
-                className="flex-1 px-6 py-3 font-display text-xl tracking-wider bg-[#c9bfa4] text-black hover:bg-amber-300 transition-colors cursor-pointer"
+                className="min-h-[44px] flex-1 px-6 py-3 font-display text-lg sm:text-xl tracking-wider bg-[#c9bfa4] text-black hover:bg-amber-300 transition-colors cursor-pointer"
               >
                 Volver al Menú (Ir a Extras)
               </button>
@@ -412,9 +416,9 @@ export function Night7EndingCinematic({
 
       {/* Bottom Cinematic Subtitle Bar during Scenes 1–3 */}
       {phase !== 'epilogue' ? (
-        <footer className="relative z-30 px-4 sm:px-10 pb-8 flex justify-center">
-          <div className="max-w-2xl w-full bg-black/82 border border-[#5c4838] px-5 py-3.5 text-center shadow-2xl">
-            <p className="font-mono-tech text-xs sm:text-sm text-[#f3ebd5] leading-relaxed">
+        <footer className="relative z-30 px-3 sm:px-10 pb-4 sm:pb-8 flex justify-center">
+          <div className="max-w-2xl w-full bg-black/82 border border-[#5c4838] px-3.5 sm:px-5 py-2.5 sm:py-3.5 text-center shadow-2xl">
+            <p className="font-mono-tech text-[11px] sm:text-sm text-[#f3ebd5] leading-relaxed">
               {phase === 'ignite' &&
                 '06:00 AM · El guardia rocía gasolina por todo el Foro 4 y enciende el último fósforo para terminar con la maldición de TV Azteca.'}
               {phase === 'burning' &&
