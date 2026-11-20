@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { TELECHOBIS, OFFICE_ASSETS } from '../types/game';
 
 export const AURA_BATTLE_POSES = [
@@ -283,6 +284,73 @@ export function CurriculumVitaeOverlay({ active }: { active: boolean }) {
           alt="Currículum Vitae mostrado en primera persona"
           referrerPolicy="no-referrer"
           className="w-full h-full object-contain object-bottom drop-shadow-[0_18px_36px_rgba(0,0,0,0.96)]"
+        />
+      </div>
+    </div>
+  );
+}
+
+export function AuraCheatHandsOverlay({
+  active,
+  transparentForCameras = false,
+  withCv = false,
+}: {
+  active: boolean;
+  transparentForCameras?: boolean;
+  withCv?: boolean;
+}) {
+  const [poseIndex, setPoseIndex] = useState(0);
+
+  useEffect(() => {
+    if (!active) return;
+    const timer = window.setInterval(() => {
+      setPoseIndex((prev) => (prev + 1) % AURA_BATTLE_POSES.length);
+    }, 640);
+    return () => window.clearInterval(timer);
+  }, [active]);
+
+  if (!active) return null;
+
+  return (
+    <div
+      className={`pointer-events-none fixed inset-x-0 bottom-0 z-[45] flex items-end justify-center overflow-hidden transition-opacity duration-200 ${
+        transparentForCameras ? 'opacity-25' : 'opacity-95'
+      }`}
+    >
+      <div
+        className={`w-[92vw] max-w-[540px] sm:max-w-[640px] h-[30dvh] min-h-[145px] max-h-[270px] short-landscape:h-[40dvh] flex items-end justify-center transition-transform duration-200 ${
+          withCv ? '-translate-x-[12%] sm:-translate-x-[14%]' : ''
+        }`}
+      >
+        <PlayerAuraHands poseIndex={poseIndex} />
+      </div>
+    </div>
+  );
+}
+
+export function CvCheatOverlay({
+  active,
+  transparentForCameras = false,
+  withAuraHands = false,
+}: {
+  active: boolean;
+  transparentForCameras?: boolean;
+  withAuraHands?: boolean;
+}) {
+  if (!active) return null;
+
+  return (
+    <div
+      className={`pointer-events-none fixed inset-0 z-[46] flex items-end overflow-hidden transition-opacity duration-200 ${
+        withAuraHands ? 'justify-end pr-2 sm:pr-10 md:pr-16' : 'justify-center'
+      } ${transparentForCameras ? 'opacity-25' : 'opacity-95'}`}
+    >
+      <div className="w-[46vw] max-w-[270px] sm:max-w-[320px] h-[34dvh] sm:h-[44dvh] max-h-[380px] short-landscape:h-[52dvh] flex items-end justify-center animate-aura-duel-bounce">
+        <img
+          src={OFFICE_ASSETS.curriculumVitae}
+          alt="Currículum Vitae sostenido en mano"
+          referrerPolicy="no-referrer"
+          className="w-full h-full object-contain object-bottom drop-shadow-[0_14px_28px_rgba(0,0,0,0.95)]"
         />
       </div>
     </div>

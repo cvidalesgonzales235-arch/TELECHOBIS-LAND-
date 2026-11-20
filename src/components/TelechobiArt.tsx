@@ -248,9 +248,11 @@ export function FirstPersonHandOverlay({
 export function TelechobiMaskOverlay({
   active,
   oxygenPct = 100,
+  transparentForCameras = false,
 }: {
   active: boolean;
   oxygenPct?: number;
+  transparentForCameras?: boolean;
 }) {
   if (!active) return null;
 
@@ -259,28 +261,38 @@ export function TelechobiMaskOverlay({
   const midStop = Math.max(50, 86 - hypoxia * 26);
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-[44] overflow-hidden bg-black/20">
+    <div
+      className={`pointer-events-none fixed inset-0 z-[44] overflow-hidden transition-opacity duration-200 ${
+        transparentForCameras ? 'opacity-25 bg-transparent' : 'opacity-100 bg-black/20'
+      }`}
+    >
       <div className="relative w-full h-full animate-mask-breath">
         {/* Dark upper plush hood cavity shadow so only the eye holes look out into the room/cameras */}
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{
-            background:
-              'linear-gradient(to bottom, rgba(4,5,8,0.88) 0%, rgba(4,5,8,0.72) 18%, rgba(4,5,8,0.12) 34%, rgba(4,5,8,0.06) 68%, rgba(4,5,8,0.78) 96%)',
-          }}
-        />
-        <div
-          className="pointer-events-none absolute inset-0 transition-all duration-150"
-          style={{
-            background: `radial-gradient(ellipse ${72 - hypoxia * 20}% ${50 - hypoxia * 14}% at 50% 49%, transparent ${innerClear}%, rgba(0,0,0,0.82) ${midStop}%, rgba(0,0,0,0.95) 100%)`,
-          }}
-        />
+        {!transparentForCameras && (
+          <>
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{
+                background:
+                  'linear-gradient(to bottom, rgba(4,5,8,0.88) 0%, rgba(4,5,8,0.72) 18%, rgba(4,5,8,0.12) 34%, rgba(4,5,8,0.06) 68%, rgba(4,5,8,0.78) 96%)',
+              }}
+            />
+            <div
+              className="pointer-events-none absolute inset-0 transition-all duration-150"
+              style={{
+                background: `radial-gradient(ellipse ${72 - hypoxia * 20}% ${50 - hypoxia * 14}% at 50% 49%, transparent ${innerClear}%, rgba(0,0,0,0.82) ${midStop}%, rgba(0,0,0,0.95) 100%)`,
+              }}
+            />
+          </>
+        )}
 
         <img
           src={OFFICE_ASSETS.maskOverlay}
           alt="Interior de la máscara de Telechobi"
           referrerPolicy="no-referrer"
-          className="relative z-10 w-full h-full object-cover object-center scale-[1.06] sm:scale-[1.04] brightness-[0.82] contrast-120 opacity-90 drop-shadow-[0_0_40px_rgba(0,0,0,1)]"
+          className={`relative z-10 w-full h-full object-cover object-center scale-[1.06] sm:scale-[1.04] brightness-[0.82] contrast-120 drop-shadow-[0_0_40px_rgba(0,0,0,1)] ${
+            transparentForCameras ? 'opacity-70' : 'opacity-90'
+          }`}
         />
       </div>
     </div>

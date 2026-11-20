@@ -12,6 +12,7 @@ import {
   ALL_ENEMY_IDS,
   BASE_ENEMY_IDS,
   CAMERA_ROOMS,
+  CheatsConfig,
   CLASSIC_ENEMY_IDS,
   CameraId,
   CustomNightLaunchConfig,
@@ -36,7 +37,12 @@ import {
   TelechobiMaskOverlay,
   TelechobiSprite,
 } from './TelechobiArt';
-import { AuraBattleOverlay, CurriculumVitaeOverlay } from './BrainrotOverlays';
+import {
+  AuraBattleOverlay,
+  AuraCheatHandsOverlay,
+  CurriculumVitaeOverlay,
+  CvCheatOverlay,
+} from './BrainrotOverlays';
 import { soundEngine } from '../audio/soundEngine';
 
 type EnemyLocation =
@@ -224,11 +230,16 @@ export function OfficeGameplay({
   const isDefinitiveNight = !isSecretBrainrotNight && Boolean(launchConfig?.isDefinitiveNight);
   const aiLevels = launchConfig?.aiLevels ?? DEFAULT_AI_LEVELS;
   const rawCheats = launchConfig?.cheats ?? DEFAULT_CHEATS;
-  const cheats = isSecretBrainrotNight
-    ? { ...DEFAULT_CHEATS }
+  const cheats: CheatsConfig = isSecretBrainrotNight
+    ? {
+        ...DEFAULT_CHEATS,
+        infiniteOxygen: Boolean(rawCheats.infiniteOxygen),
+        alwaysFarmAura: Boolean(rawCheats.alwaysFarmAura),
+        alwaysHoldCv: Boolean(rawCheats.alwaysHoldCv),
+      }
     : {
         ...rawCheats,
-        autoAvoidChampi: isDefinitiveNight ? Boolean(rawCheats.autoAvoidChampi) : false,
+        autoAvoidChampi: Boolean(rawCheats.autoAvoidChampi),
       };
   const hasDefinitiveCheats = isDefinitiveNight && Object.values(cheats).some(Boolean);
   const generatorEnabled =
@@ -1497,7 +1508,7 @@ export function OfficeGameplay({
           night7TurnBlocked;
 
         if (loc === 'cam1' || loc === 'cam2') {
-          if (isDefinitiveNight && cheats.autoAvoidChampi) {
+          if (cheats.autoAvoidChampi) {
             enemy.moveCooldown = 0.5;
             return false;
           }
@@ -2022,7 +2033,7 @@ export function OfficeGameplay({
         soundEngine.stopAuraBattleSong();
         soundEngine.stopTralaleroSong();
         soundEngine.stopPaperMove();
-        onNightWin(s.power);
+        onNightWin(isSecretBrainrotNight ? s.oxygen : s.power);
         return;
       }
 
@@ -2607,9 +2618,8 @@ export function OfficeGameplay({
         }
       }
 
-      // Exclusive Noche Definitiva cheat: auto-avoid Champi ONLY once he reaches CAM 01 or CAM 02 (no monitor needed)
+      // Auto-avoid Champi cheat: ONLY acts once Champi actually reaches CAM 01 or CAM 02
       if (
-        isDefinitiveNight &&
         cheats.autoAvoidChampi &&
         activeEnemyIds.includes('champi') &&
         !s.isBlackout &&
@@ -3359,38 +3369,70 @@ export function OfficeGameplay({
             });
           }
         } else if (s.glamrockPhase === 'warning') {
-          if (isSecretBrainrotNight || !backRoomFreeze) {
-            s.glamrockAttackTimer += dt * speedRateMult;
-          }
-          const glamPatience = isSecretBrainrotNight
-            ? 8.2
-            : Math.max(4.8, 9.8 - aiLevels.glamrock * 0.22);
-          if (s.glamrockAttackTimer >= glamPatience) {
-            s.ended = true;
-            soundEngine.stopNightMusic();
-            soundEngine.stopGlamrockDuel();
-            soundEngine.stopAuraBattleSong();
-            soundEngine.stopTralaleroSong();
-            soundEngine.stopMaskBreathing();
-            onJumpscare('glamrock', 'office', Math.floor(s.elapsed / secondsPerHour));
-            return;
+          if (cheats.alwaysFarmAura) {
+            s.glamrockAttackTimer += dt;
+            if (s.glamrockAttackTimer >= 0.75) {
+              soundEngine.stopGlamrockDuel();
+              s.glamrockPhase = 'idle';
+              s.glamrockActiveSide = null;
+              s.glamrockAttackTimer = 0;
+              s.glamrockBattleTimer = 0;
+              s.lastBrainrotAttacker = 'glamrock';
+              s.glamrockSpawnCooldown = isSecretBrainrotNight
+                ? Math.max(0.45, (1.45 + Math.random() * 1.1) / spawnRateMult)
+                : Math.max(5.5, 17 - aiLevels.glamrock * 0.55);
+              setGlamrockUi({ side: null, phase: 'idle', poseIndex: 0, progressPct: 0 });
+            }
+          } else {
+            if (isSecretBrainrotNight || !backRoomFreeze) {
+              s.glamrockAttackTimer += dt * speedRateMult;
+            }
+            const glamPatience = isSecretBrainrotNight
+              ? 8.2
+              : Math.max(4.8, 9.8 - aiLevels.glamrock * 0.22);
+            if (s.glamrockAttackTimer >= glamPatience) {
+              s.ended = true;
+              soundEngine.stopNightMusic();
+              soundEngine.stopGlamrockDuel();
+              soundEngine.stopAuraBattleSong();
+              soundEngine.stopTralaleroSong();
+              soundEngine.stopMaskBreathing();
+              onJumpscare('glamrock', 'office', Math.floor(s.elapsed / secondsPerHour));
+              return;
+            }
           }
         } else if (s.tralaleroPhase === 'warning') {
-          if (isSecretBrainrotNight || !backRoomFreeze) {
-            s.tralaleroAttackTimer += dt * speedRateMult;
-          }
-          const tralPatience = isSecretBrainrotNight
-            ? 8.2
-            : Math.max(4.8, 9.8 - aiLevels.tralalero * 0.22);
-          if (s.tralaleroAttackTimer >= tralPatience) {
-            s.ended = true;
-            soundEngine.stopNightMusic();
-            soundEngine.stopGlamrockDuel();
-            soundEngine.stopAuraBattleSong();
-            soundEngine.stopTralaleroSong();
-            soundEngine.stopMaskBreathing();
-            onJumpscare('tralalero', 'office', Math.floor(s.elapsed / secondsPerHour));
-            return;
+          if (cheats.alwaysHoldCv) {
+            s.tralaleroAttackTimer += dt;
+            if (s.tralaleroAttackTimer >= 0.75) {
+              soundEngine.stopTralaleroSong();
+              soundEngine.playPaperMove(0.72);
+              s.tralaleroPhase = 'retreat';
+              s.tralaleroRetreatTimer = 0.75;
+              s.tralaleroAttackTimer = 0;
+              setTralaleroUi((prev) => ({
+                side: s.tralaleroActiveSide,
+                phase: 'retreat',
+                cvOpen: prev.cvOpen,
+              }));
+            }
+          } else {
+            if (isSecretBrainrotNight || !backRoomFreeze) {
+              s.tralaleroAttackTimer += dt * speedRateMult;
+            }
+            const tralPatience = isSecretBrainrotNight
+              ? 8.2
+              : Math.max(4.8, 9.8 - aiLevels.tralalero * 0.22);
+            if (s.tralaleroAttackTimer >= tralPatience) {
+              s.ended = true;
+              soundEngine.stopNightMusic();
+              soundEngine.stopGlamrockDuel();
+              soundEngine.stopAuraBattleSong();
+              soundEngine.stopTralaleroSong();
+              soundEngine.stopMaskBreathing();
+              onJumpscare('tralalero', 'office', Math.floor(s.elapsed / secondsPerHour));
+              return;
+            }
           }
         } else {
           // Both Glamrock Aura & Tralalero are currently idle: tick cooldowns
@@ -3499,6 +3541,8 @@ export function OfficeGameplay({
     cheats.infiniteHomerMoans,
     cheats.noAudioErrorsInstant,
     cheats.autoAvoidChampi,
+    cheats.alwaysFarmAura,
+    cheats.alwaysHoldCv,
     durationSeconds,
     secondsPerHour,
     onJumpscare,
@@ -4394,6 +4438,28 @@ export function OfficeGameplay({
       <TelechobiMaskOverlay
         active={maskOn}
         oxygenPct={!cheats.infiniteOxygen || isDefinitiveNight ? oxygen : 100}
+        transparentForCameras={monitorOpen}
+      />
+
+      {/* ===================== PERSISTENT AURA FARMING & CV IN HAND CHEATS ===================== */}
+      <AuraCheatHandsOverlay
+        active={
+          Boolean(cheats.alwaysFarmAura) &&
+          !isBlackout &&
+          glamrockUi.phase !== 'battle' &&
+          glamrockUi.phase !== 'retreat'
+        }
+        transparentForCameras={monitorOpen}
+        withCv={Boolean(cheats.alwaysHoldCv) && !tralaleroUi.cvOpen}
+      />
+      <CvCheatOverlay
+        active={Boolean(cheats.alwaysHoldCv) && !isBlackout && !tralaleroUi.cvOpen}
+        transparentForCameras={monitorOpen}
+        withAuraHands={
+          Boolean(cheats.alwaysFarmAura) &&
+          glamrockUi.phase !== 'battle' &&
+          glamrockUi.phase !== 'retreat'
+        }
       />
 
       {/* ===================== OXYGEN DEPRIVATION TUNNEL VISION & RECOVERY FLASH ===================== */}

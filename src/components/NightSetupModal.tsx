@@ -154,7 +154,12 @@ export function PersonalizedNightConfigurator({
         },
         enableGeneratorRecharge: false,
         durationMinutes,
-        cheats: { ...rawCheats, autoAvoidChampi: false },
+        cheats: {
+          ...DEFAULT_CHEATS,
+          infiniteOxygen: Boolean(rawCheats.infiniteOxygen),
+          alwaysFarmAura: Boolean(rawCheats.alwaysFarmAura),
+          alwaysHoldCv: Boolean(rawCheats.alwaysHoldCv),
+        },
         title: 'NOCHE SECRETA · AURA & BRAINROT',
       });
       return;
@@ -162,7 +167,9 @@ export function PersonalizedNightConfigurator({
 
     const effectiveCheats: CheatsConfig = {
       ...rawCheats,
-      autoAvoidChampi: is1999Code ? Boolean(rawCheats.autoAvoidChampi) : false,
+      autoAvoidChampi: Boolean(rawCheats.autoAvoidChampi),
+      alwaysFarmAura: secretUnlocked ? Boolean(rawCheats.alwaysFarmAura) : false,
+      alwaysHoldCv: secretUnlocked ? Boolean(rawCheats.alwaysHoldCv) : false,
     };
     const anyCheatEnabled = Object.values(effectiveCheats).some(Boolean);
     const effectiveDurationMinutes = is1999Code && anyCheatEnabled ? 12 : durationMinutes;
@@ -199,29 +206,43 @@ export function PersonalizedNightConfigurator({
     const anyDefCheat = is1999Code && Object.values(cheats).some(Boolean);
     return (
       <CheatsPromptStep
-        title={is1999Code ? 'NOCHE DEFINITIVA · MODO SECRETO 8/40 (1999)' : 'PERSONALIZED NIGHT · TRUCOS'}
+        title={
+          isBoss1999Code
+            ? 'NOCHE SECRETA · SELECCIÓN DE TRUCOS'
+            : is1999Code
+              ? 'NOCHE DEFINITIVA · MODO SECRETO 8/40 (1999)'
+              : 'PERSONALIZED NIGHT · TRUCOS'
+        }
         subtitle={
-          is1999Code
-            ? `Código 1999 activado · Los 8 enemigos en Dificultad 40 · ${formatDurationLabel(
-                anyDefCheat ? 12 : durationMinutes
-              )}${anyDefCheat ? ' (12 min reales por usar Trucos)' : ''} · Generador ON`
-            : `Clásicos (${aiLevels.ton}/${aiLevels.toso}/${aiLevels.nita}/${aiLevels.tis}) · Jefes N7 (${aiLevels.arbol}/${aiLevels.champi}/${aiLevels.non}/${aiLevels.charro}) · ${formatDurationLabel(
+          isBoss1999Code
+            ? `Segunda Oficina · Glamrock Aura & Tralalero Faz-Shark · ${formatDurationLabel(
                 durationMinutes
-              )} · Generador ${enableGenerator ? 'ON' : 'OFF'}`
+              )}`
+            : is1999Code
+              ? `Código 1999 activado · Los 8 enemigos en Dificultad 40 · ${formatDurationLabel(
+                  anyDefCheat ? 12 : durationMinutes
+                )}${anyDefCheat ? ' (12 min reales por usar Trucos)' : ''} · Generador ON`
+              : `Clásicos (${aiLevels.ton}/${aiLevels.toso}/${aiLevels.nita}/${aiLevels.tis}) · Jefes N7 (${aiLevels.arbol}/${aiLevels.champi}/${aiLevels.non}/${aiLevels.charro}) · ${formatDurationLabel(
+                  durationMinutes
+                )} · Generador ${enableGenerator ? 'ON' : 'OFF'}`
         }
         cheats={cheats}
         isDefinitiveNight={is1999Code}
+        isSecretBrainrotNight={isBoss1999Code}
+        secretUnlocked={secretUnlocked}
         onToggleCheat={toggleCheat}
         onSelectAll={(enable) => {
           soundEngine.playClick(680);
           setCheats({
-            noAudioErrorsInstant: enable,
-            infinitePower: enable,
-            doorsClosedStart: enable,
+            noAudioErrorsInstant: isBoss1999Code ? false : enable,
+            infinitePower: isBoss1999Code ? false : enable,
+            doorsClosedStart: isBoss1999Code ? false : enable,
             infiniteOxygen: enable,
-            radar: enable,
-            infiniteHomerMoans: enable,
-            autoAvoidChampi: is1999Code ? enable : false,
+            radar: isBoss1999Code ? false : enable,
+            infiniteHomerMoans: isBoss1999Code ? false : enable,
+            autoAvoidChampi: isBoss1999Code ? false : enable,
+            alwaysFarmAura: isBoss1999Code || secretUnlocked ? enable : false,
+            alwaysHoldCv: isBoss1999Code || secretUnlocked ? enable : false,
           });
         }}
         onBack={() => {
@@ -628,6 +649,8 @@ export interface CheatsPromptStepProps {
   subtitle: string;
   cheats: CheatsConfig;
   isDefinitiveNight?: boolean;
+  isSecretBrainrotNight?: boolean;
+  secretUnlocked?: boolean;
   onToggleCheat: (key: keyof CheatsConfig) => void;
   onSelectAll: (enable: boolean) => void;
   onBack: () => void;
@@ -639,66 +662,101 @@ export function CheatsPromptStep({
   subtitle,
   cheats,
   isDefinitiveNight = false,
+  isSecretBrainrotNight = false,
+  secretUnlocked = false,
   onToggleCheat,
   onSelectAll,
   onBack,
   onConfirm,
 }: CheatsPromptStepProps) {
-  const cheatItems: Array<{
+  const showBrainrotCheats = isSecretBrainrotNight || secretUnlocked;
+
+  const standardItems: Array<{
     key: keyof CheatsConfig;
     label: string;
     desc: string;
     icon: typeof Volume2;
     exclusiveDefinitive?: boolean;
-  }> = [
-    {
-      key: 'noAudioErrorsInstant',
-      label: 'Audio sin Errores y Recarga Instantánea',
-      desc: 'El timbre de audio en cámaras nunca cae por cortocircuito y se recarga al instante (0s).',
-      icon: Volume2,
-    },
-    {
-      key: 'infinitePower',
-      label: 'Energía Infinita (100%)',
-      desc: 'La batería se mantiene fija en 100% sin desgaste ni apagón eléctrico.',
-      icon: Zap,
-    },
-    {
-      key: 'doorsClosedStart',
-      label: 'Puertas Izquierda y Derecha Cerradas al Iniciar',
-      desc: 'Comienza la noche con ambas compuertas metálicas ya selladas desde las 12:00 AM.',
-      icon: Shield,
-    },
-    {
-      key: 'infiniteOxygen',
-      label: 'Oxígeno Infinito + Visión Completa con Máscara',
-      desc: 'Oxígeno fijo al 100%; puedes girar a ambas puertas, ver cámaras, audio y generador con la Máscara puesta.',
-      icon: Sparkles,
-    },
-    {
-      key: 'radar',
-      label: 'Radar (Kit de Supervivencia)',
-      desc: 'Al abrir las cámaras, muestra en tiempo real los iconos de todos los animatrónicos y jefes sobre el mapa del Foro 4.',
-      icon: Radar,
-    },
-    {
-      key: 'infiniteHomerMoans',
-      label: 'Gemidos de Homero Infinitos (Equilibrado)',
-      desc: 'Reproduce el audio de Homero en bucle continuo con volumen equilibrado para seguir oyendo pasos, risas y ventilación.',
-      icon: Radio,
-    },
-    ...(isDefinitiveNight
-      ? [
-          {
-            key: 'autoAvoidChampi' as keyof CheatsConfig,
-            label: 'Evitar a Champi Automáticamente (Exclusivo Definitiva)',
-            desc: 'Aunque no abras las cámaras, cuando Champi llegue a CAM 01 o CAM 02 será evitado y expulsado de forma automática.',
-            icon: Flame,
-            exclusiveDefinitive: true,
-          },
-        ]
-      : []),
-  ];
+  }> = isSecretBrainrotNight
+    ? [
+        {
+          key: 'infiniteOxygen',
+          label: 'Oxígeno Infinito (100%)',
+          desc: 'El oxígeno se mantiene fijo en 100% al girar entre los 4 muros de la Segunda Oficina.',
+          icon: Sparkles,
+        },
+      ]
+    : [
+        {
+          key: 'noAudioErrorsInstant',
+          label: 'Audio sin Errores y Recarga Instantánea',
+          desc: 'El timbre de audio en cámaras nunca cae por cortocircuito y se recarga al instante (0s).',
+          icon: Volume2,
+        },
+        {
+          key: 'infinitePower',
+          label: 'Energía Infinita (100%)',
+          desc: 'La batería se mantiene fija en 100% sin desgaste ni apagón eléctrico.',
+          icon: Zap,
+        },
+        {
+          key: 'doorsClosedStart',
+          label: 'Puertas Izquierda y Derecha Cerradas al Iniciar',
+          desc: 'Comienza la noche con ambas compuertas metálicas ya selladas desde las 12:00 AM.',
+          icon: Shield,
+        },
+        {
+          key: 'infiniteOxygen',
+          label: 'Oxígeno Infinito + Visión Completa con Máscara',
+          desc: 'Oxígeno fijo al 100%; puedes girar a ambas puertas, ver cámaras, audio y generador con la Máscara puesta.',
+          icon: Sparkles,
+        },
+        {
+          key: 'radar',
+          label: 'Radar (Kit de Supervivencia)',
+          desc: 'Al abrir las cámaras, muestra en tiempo real los iconos de todos los animatrónicos y jefes sobre el mapa del Foro 4.',
+          icon: Radar,
+        },
+        {
+          key: 'infiniteHomerMoans',
+          label: 'Gemidos de Homero Infinitos (Equilibrado)',
+          desc: 'Reproduce el audio de Homero en bucle continuo con volumen equilibrado para seguir oyendo pasos, risas y ventilación.',
+          icon: Radio,
+        },
+        {
+          key: 'autoAvoidChampi',
+          label: 'Evitar a Champi en CAM 01 / CAM 02',
+          desc: 'Solo cuando Champi llegue a CAM 01 o CAM 02, detecta que está ahí y se retira automáticamente (en otras cámaras no actúa hasta que llegue a CAM 01 o CAM 02).',
+          icon: Flame,
+        },
+      ];
+
+  const brainrotCheatItems: Array<{
+    key: keyof CheatsConfig;
+    label: string;
+    desc: string;
+    icon: typeof Volume2;
+    exclusiveDefinitive?: boolean;
+  }> = showBrainrotCheats
+    ? [
+        {
+          key: 'alwaysFarmAura',
+          label: 'Farmear Aura Continuo (Exclusivo)',
+          desc: 'Desde el inicio haces los gestos de Farmear Aura en primera persona (transparentes al abrir cámaras). Glamrock Aura se retirará sin importar en qué parte de la oficina estés.',
+          icon: Sparkles,
+          exclusiveDefinitive: true,
+        },
+        {
+          key: 'alwaysHoldCv',
+          label: 'Currículum Vitae en Mano (Exclusivo)',
+          desc: 'Desde el inicio sostienes el Currículum Vitae en mano (transparente al abrir cámaras) sin impedir puertas, linterna, máscara ni ductos. Tralalero Faz-Shark huirá estés donde estés.',
+          icon: Shield,
+          exclusiveDefinitive: true,
+        },
+      ]
+    : [];
+
+  const cheatItems = [...standardItems, ...brainrotCheatItems];
 
   const activeCount = cheatItems.filter((item) => Boolean(cheats[item.key])).length;
 
@@ -875,6 +933,7 @@ export function NightSelectorPanel({
             : `Modo Normal del Juego · Noche ${selectedNight}`
         }
         cheats={cheats}
+        secretUnlocked={secretUnlocked}
         onToggleCheat={(key) => {
           soundEngine.playClick(640);
           setCheats((p) => ({ ...p, [key]: !p[key] }));
@@ -888,7 +947,9 @@ export function NightSelectorPanel({
             infiniteOxygen: enable,
             radar: enable,
             infiniteHomerMoans: enable,
-            autoAvoidChampi: false,
+            autoAvoidChampi: enable,
+            alwaysFarmAura: secretUnlocked ? enable : false,
+            alwaysHoldCv: secretUnlocked ? enable : false,
           });
         }}
         onBack={() => {
@@ -904,7 +965,12 @@ export function NightSelectorPanel({
             aiLevels,
             enableGeneratorRecharge: enableGenerator,
             durationMinutes,
-            cheats: { ...cheats, autoAvoidChampi: false },
+            cheats: {
+              ...cheats,
+              autoAvoidChampi: Boolean(cheats.autoAvoidChampi),
+              alwaysFarmAura: secretUnlocked ? Boolean(cheats.alwaysFarmAura) : false,
+              alwaysHoldCv: secretUnlocked ? Boolean(cheats.alwaysHoldCv) : false,
+            },
             title: isCustomAI ? `Noche ${selectedNight} Personalizada` : `Noche ${selectedNight}`,
           });
         }}

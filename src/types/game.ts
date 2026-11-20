@@ -542,6 +542,8 @@ export interface CheatsConfig {
   radar: boolean;
   infiniteHomerMoans: boolean;
   autoAvoidChampi?: boolean;
+  alwaysFarmAura?: boolean;
+  alwaysHoldCv?: boolean;
 }
 
 export const DEFAULT_CHEATS: CheatsConfig = {
@@ -552,6 +554,8 @@ export const DEFAULT_CHEATS: CheatsConfig = {
   radar: false,
   infiniteHomerMoans: false,
   autoAvoidChampi: false,
+  alwaysFarmAura: false,
+  alwaysHoldCv: false,
 };
 
 export const DEFAULT_AI_LEVELS: Record<TelechobiId, number> = {

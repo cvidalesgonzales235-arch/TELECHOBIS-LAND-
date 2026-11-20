@@ -140,9 +140,9 @@ const ATTACK_METHODS_GUIDE: Record<
     vent: 'Se teletransporta desde CAM 09 a la Ventilación (VENT 11 → VENT 12) con su risa de Nightmare + Crawl & Rattle. Ignora el Audio en VENT 11; repélelo con los Gemidos en VENT 12.',
   },
   champi: {
-    trait: 'Jefe Noche 7 y Definitiva (40) · ÚNICO al que debes buscar en las cámaras (inmune al Audio). Tiene ICONO propio y patina por CAM 03–10 con Gears 1 hasta CAM 01/02 (5s de reposo). En Noche Definitiva tiene un truco exclusivo que lo evita automáticamente en CAM 01/02 sin abrir el monitor, pero activar trucos fija la noche en 12 min reales.',
+    trait: 'Jefe Noche 7 y Definitiva (40) · ÚNICO al que debes buscar en las cámaras (inmune al Audio). Tiene ICONO propio y patina por CAM 03–10 con Gears 1 hasta CAM 01/02 (5s de reposo). Con el truco "Evitar a Champi en CAM 01 / CAM 02" activo, se retira automáticamente solo al llegar a CAM 01 o CAM 02 (en Noche Definitiva activar trucos fija la duración en 12 min reales).',
     leftDoor: 'SCREAMER #1 (INSTANTÁNEO): Si no lo encuentras y observas (~0.55s) en el CCTV antes de salir de CAM 01, oirás su carrera rápida (Foxy Running) y te matará al instante.',
-    rightDoor: 'SCREAMER #2 (INSTANTÁNEO): Si alcanza CAM 02 y agota su espera sin ser detenido en cámaras (o sin el truco exclusivo en Definitiva), correrá y te matará al instante en la Puerta Derecha.',
+    rightDoor: 'SCREAMER #2 (INSTANTÁNEO): Si alcanza CAM 02 y agota su espera sin ser detenido en cámaras (o sin el truco de CAM 01/02 activo), correrá y te matará al instante en la Puerta Derecha.',
     centerHall: 'SCREAMER #3 (INSTANTÁNEO): Si cruza CAM 02 sin que lo detengas en el CCTV, correrá al Pasillo Central y te matará al instante. Míralo en el monitor para mandarlo a CAM 09.',
     vent: 'NO ATACA POR VENTILACIÓN · Nunca entra a los ductos ni emite el crujido de puerta. Solo tiene 3 Screamers (Puerta Izq., Puerta Der. y Pasillo Central).',
   },
